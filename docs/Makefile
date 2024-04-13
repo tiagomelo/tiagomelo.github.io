@@ -5,6 +5,11 @@ help:
 	@ sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
 
 .PHONY: run
-## run: run website locally
+## run: runs website locally
 run:
 	@ bundle exec jekyll serve
+
+.PHONY: show-theme-files
+## show-theme-files: shows theme files
+show-theme-files:
+	@ open $$(bundle info --path minima)
