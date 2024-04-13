@@ -1,0 +1,13 @@
+---
+layout: post
+title:  "Welcome."
+date:   2024-04-13 13:26:01 -0300
+categories: welcome
+---
+Hi there. After many years, I've decided to (finally) come up with a personal website where I can share my technical articles, tips, tricks and general discussions regarding to software development.
+
+Having almost 40 published articles in my [linkedin](https://www.linkedin.com/in/%F0%9F%92%A1-tiago-melo-443604162/), I'll start to bring them to here.
+
+Also I'll create an `open source` section where you can take a look in my projects.
+
+Stay tunned!
