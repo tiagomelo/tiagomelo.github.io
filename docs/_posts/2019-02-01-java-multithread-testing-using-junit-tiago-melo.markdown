@@ -4,7 +4,7 @@ title:  "Java: Multithread testing using JUnit"
 date:   2019-02-01 13:26:01 -0300
 categories: java multithread junit
 ---
-![Java: Multithread testing using JUnit](/assets/images/2019-02-01-banner.jpeg)
+![Java: Multithread testing using JUnit](/assets/images/2019-02-01-5b678502-8a1c-4ebd-b298-36e03fa29a94/2019-02-01-banner.jpeg)
 
 # Java: Multithread testing using JUnit
 
@@ -335,7 +335,7 @@ public class UserServiceImplMultithreadedTest {
 
 If we run it, the test will fail as expected:
 
-![No alt text provided for this image](/assets/images/1548989081120.png)
+![No alt text provided for this image](/assets/images/2019-02-01-5b678502-8a1c-4ebd-b298-36e03fa29a94/1548989081120.png)
 
 This is the detailed stack trace:
 
@@ -415,7 +415,7 @@ public void testSaveMethod() throws InterruptedException, ExecutionException {
 
 It will pass as expected:
 
-![No alt text provided for this image](/assets/images/1548989715019.png)
+![No alt text provided for this image](/assets/images/2019-02-01-5b678502-8a1c-4ebd-b298-36e03fa29a94/1548989715019.png)
 
 Alright. Time to make it right. Let's mark UserServiceImpl#save() method as _synchronized_.
 
@@ -574,7 +574,7 @@ public class UserServiceImplMultithreadedTest {
 
 It passes as expected:
 
-![No alt text provided for this image](/assets/images/1548990059829.png)
+![No alt text provided for this image](/assets/images/2019-02-01-5b678502-8a1c-4ebd-b298-36e03fa29a94/1548990059829.png)
 
 ## Conclusion
 
