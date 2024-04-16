@@ -466,6 +466,8 @@ if diff := cmp.Diff(test.expectedItems, items); diff != "" {
 
 I'll mess up with a test input:
 
+{% raw %}
+{% pullquote right %}
 ```
 {
     name:          "happy path",
@@ -474,6 +476,7 @@ I'll mess up with a test input:
 },
 
 ```
+{% endraw %}
 
 Running the test, it will show the differences:
 
