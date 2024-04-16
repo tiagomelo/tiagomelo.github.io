@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Go: a clean and neat way for managing configuration data from environment variables"
-date:   2024-04-16 13:26:01 -0300
+date:   2024-04-08 13:26:01 -0300
 categories: quicktip go envconfig
 ---
 
