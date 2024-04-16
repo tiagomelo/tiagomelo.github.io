@@ -1,3 +1,9 @@
+---
+layout: post
+title:  "Perl: writing a directory watcher"
+date:   2019-02-03 13:26:01 -0300
+categories: perl
+---
 ![Perl: writing a directory watcher](/assets/images/2019-02-03-58be17aa-21ab-401e-9f23-5fa6fb6f81df/2019-02-03-banner.jpeg)
 
 # Perl: writing a directory watcher
