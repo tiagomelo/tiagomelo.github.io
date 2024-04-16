@@ -270,6 +270,7 @@ Cool, isn't it?
 We need to test 'BuildItemSlice' function to be sure of its behavior:
 
 ```
+{% raw %}{% pullquote right %}{% endraw %}
 package item_test
 
 import (
