@@ -2,7 +2,7 @@
 layout: post
 title:  "Golang: building a CRUD API using GRPC and MongoDB + handling arbitrary data types"
 date:   2023-07-17 13:26:01 -0300
-categories: go mysql
+categories: go grpc mongodb
 ---
 ![Golang: building a CRUD API using GRPC and MongoDB + handling arbitrary data types](/assets/images/2023-07-17-fc3352e1-3ef8-424c-a0af-7aa5e0492d3a/2023-07-17-banner.jpeg)
 
