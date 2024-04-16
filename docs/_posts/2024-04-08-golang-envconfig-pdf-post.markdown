@@ -5,4 +5,22 @@ date:   2024-04-08 13:26:01 -0300
 categories: quicktip go envconfig
 ---
 
-<object data="{{ site.url }}{{ site.baseurl }}/assets/pdf/GolangConfig.pdf" width="1000" height="1000" type="application/pdf"></object>
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig1.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig2.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig3.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig4.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig5.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig6.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig7.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig8.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig9.jpg)
+
+![No alt text provided for this image](/assets/pdf/golang-config/GolangConfig10.jpg)
