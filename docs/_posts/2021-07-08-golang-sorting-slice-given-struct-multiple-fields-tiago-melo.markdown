@@ -269,8 +269,9 @@ Cool, isn't it?
 
 We need to test 'BuildItemSlice' function to be sure of its behavior:
 
+{% raw %}
+{% pullquote right %}
 ```
-{% raw %}{% pullquote right %}{% endraw %}
 package item_test
 
 import (
@@ -332,6 +333,7 @@ func TestBuildItemSlice(t *testing.T) {
 }
 
 ```
+{% endraw %}
 
 `sorter_test.go`
 
