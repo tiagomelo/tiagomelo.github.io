@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Golang: uploading files to an AWS S3 bucket using pre-signed URL"
-date:   2022-04-14 13:26:01 -0300
+date:   2022-10-14 13:26:01 -0300
 categories: go aws s3
 ---
 ![Golang: uploading files to an AWS S3 bucket using pre-signed URL](/assets/images/2022-10-14-d040f8c1-9082-4671-b37e-01df4eebb1d1/2022-04-14-banner.jpeg)
