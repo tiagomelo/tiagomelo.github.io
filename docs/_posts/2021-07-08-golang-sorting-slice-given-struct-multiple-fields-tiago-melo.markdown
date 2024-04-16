@@ -270,7 +270,6 @@ Cool, isn't it?
 We need to test 'BuildItemSlice' function to be sure of its behavior:
 
 {% raw %}
-{% pullquote right %}
 ```
 package item_test
 
@@ -467,7 +466,6 @@ if diff := cmp.Diff(test.expectedItems, items); diff != "" {
 I'll mess up with a test input:
 
 {% raw %}
-{% pullquote right %}
 ```
 {
     name:          "happy path",
