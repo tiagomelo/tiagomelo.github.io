@@ -265,7 +265,7 @@ Cool, isn't it?
 
 ## Unit tests
 
-item\_test.go
+`item_test.go`
 
 We need to test 'BuildItemSlice' function to be sure of its behavior:
 
@@ -332,7 +332,7 @@ func TestBuildItemSlice(t *testing.T) {
 
 ```
 
-sorter\_test.go
+`sorter_test.go`
 
 Finally, we are testing our sorting algorithm itself:
 
