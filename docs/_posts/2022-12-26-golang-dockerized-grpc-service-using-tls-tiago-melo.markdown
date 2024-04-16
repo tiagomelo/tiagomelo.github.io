@@ -409,15 +409,3 @@ Here we go:
 ## Download the source
 
 Here: [https://bitbucket.org/tiagoharris/docker-grpc-service-tls-tutorial](https://bitbucket.org/tiagoharris/docker-grpc-service-tls-tutorial?trk=article-ssr-frontend-pulse_little-text-block)
-
-Help improve contributions
-
-Mark contributions as unhelpful if you find them irrelevant or not valuable to the article. This feedback is private to you and won’t be shared publicly.
-
-Got it
-
-Contribution hidden for you
-
-This feedback is never shared publicly, we’ll use it to show better contributions to everyone.
-
-Undo``
