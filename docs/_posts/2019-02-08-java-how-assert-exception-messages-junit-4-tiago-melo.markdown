@@ -19,12 +19,7 @@ It's easy to write a unit test to check if a certain exception is thrown, like t
 public void testIndexOutOfBoundsException() {
     ArrayList emptyList = new ArrayList();
     Object o = emptyList.get(0);
-
-```
-
-```
 }
-
 ```
 
 But we may want to assert the exception's message as well.
@@ -84,10 +79,6 @@ public class DateUtil {
 
 ```
 
-```
-
-```
-
 So, if the 'date' parameter is null, an 'IllegalArgumentException' is thrown; otherwise, a 'RuntimeException' is thrown if it's in an invalid format.
 
 This is how we can test it:
@@ -135,20 +126,11 @@ public class DateUtilTest {
 
 ```
 
-```
-
-```
-
 Lets walk through it:
 
 ```
 @Rule
-
-```
-
-```
 public ExpectedException expectedEx = ExpectedException.none();
-
 ```
 
 A [JUnit 4 rule](https://junit.org/junit4/javadoc/latest/org/junit/Rule.html) is a component that intercepts test method calls and allows us to do something before a test method is run and after a test method has been run. All JUnit 4 rule classes must implement the [TestRule](https://junit.org/junit4/javadoc/latest/org/junit/rules/TestRule.html) interface.
@@ -174,10 +156,6 @@ Likewise, when testing a invalid format:
 
 ```
 @Test
-
-```
-
-```
 public void whenDateParameterIsInvalid_thenThrowRuntimeException() {
   String invalidDateStr = "2019-01-a";
 
@@ -193,17 +171,12 @@ Finally, when 'date' parameter is valid:
 
 ```
 @Test
-
-```
-
-```
 public void whenDateParameterIsValid_thenReturnLocalDateTimeObject() {
   String validDateTimeStr = "2019-01-01.22:03:01";
   String returneDateTimeStr = DateUtil.parse(validDateTimeStr).format(DateUtil.FORMATTER);
 
   assertEquals(validDateTimeStr, returneDateTimeStr);
 }
-
 ```
 
 All tests passes as expected:
