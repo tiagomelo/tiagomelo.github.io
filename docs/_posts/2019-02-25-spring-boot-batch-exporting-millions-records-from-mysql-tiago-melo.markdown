@@ -4,7 +4,7 @@ title:  "Spring Boot Batch: exporting millions of records from a MySQL table to 
 date:   2019-02-25 13:26:01 -0300
 categories: java springboot batch mysql csv
 ---
-![Spring Boot Batch: exporting millions of records from a MySQL table to a CSV file without eating all your memory](../assets/images/2019-02-25-803f0e35-4011-4be6-beac-ff933151ccd3/2019-02-25-banner.jpeg)
+![Spring Boot Batch: exporting millions of records from a MySQL table to a CSV file without eating all your memory](/assets/images/2019-02-25-803f0e35-4011-4be6-beac-ff933151ccd3/2019-02-25-banner.jpeg)
 
 # Spring Boot Batch: exporting millions of records from a MySQL table to a CSV file without eating all your memory
 
