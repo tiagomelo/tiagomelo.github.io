@@ -495,6 +495,7 @@ The templates
 
 obs/templates/prometheus/prometheus.yaml
 
+{% raw %}
 ```
 scrape_configs:
   - job_name: 'server'
@@ -507,11 +508,13 @@ scrape_configs:
       - targets: ['{{.IP}}:{{.ClientPort}}']
 
 ```
+{% endraw %}
 
 Here we configure [Prometheus](https://prometheus.io/?trk=article-ssr-frontend-pulse_little-text-block) to scrap metrics for both server and client, and the targets will be dinamically replaced with our machine's IP and the port for the respective server and client HTTP metrics handler.
 
 obs/templates/provisioning/datasources/datasource.yaml
 
+{% raw %}
 ```
 apiVersion: 1
 
@@ -523,6 +526,7 @@ datasources:
   isDefault: true
 
 ```
+{% endraw %}
 
 This is the template to configure [Prometheus](https://prometheus.io/?trk=article-ssr-frontend-pulse_little-text-block) datasource in [Grafana](http://grafana.com/?trk=article-ssr-frontend-pulse_little-text-block).
 

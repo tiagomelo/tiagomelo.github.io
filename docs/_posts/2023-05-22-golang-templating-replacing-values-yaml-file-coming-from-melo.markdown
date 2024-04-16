@@ -24,6 +24,7 @@ Suppose we want to replace our template with some values, like [Helm](https://he
 
 template/template.yaml
 
+{% raw %}
 ```
 apiVersion: v1
 kind: Deployment
@@ -38,6 +39,7 @@ spec:
         image: {{ .Image }}
 
 ```
+{% endraw %}
 
 template/values.yaml
 

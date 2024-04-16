@@ -7,7 +7,7 @@ help:
 .PHONY: run
 ## run: runs website locally
 run:
-	@ bundle exec jekyll serve
+	@ cd docs && bundle exec jekyll serve
 
 .PHONY: show-theme-files
 ## show-theme-files: shows theme files
