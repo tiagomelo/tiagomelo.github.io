@@ -6,8 +6,6 @@ categories: go mariadb temporaltables
 ---
 ![Golang: a RESTful API using temporal table with MariaDB](/assets/images/2023-04-06-3eb1014e-dcf0-4f59-995e-b7bfcf706321/2023-04-06-banner.jpeg)
 
-# Golang: a RESTful API using temporal table with MariaDB
-
 [Temporal tables](https://en.wikipedia.org/wiki/Temporal_database?trk=article-ssr-frontend-pulse_little-text-block) are a type of database table that store historical data, allowing users to query the data as it existed at specific points in time. These tables track changes made to data over time and retain a history of all modifications. This can be useful for auditing, compliance, and tracking changes over time. [Temporal tables](https://en.wikipedia.org/wiki/Temporal_database?trk=article-ssr-frontend-pulse_little-text-block) differ from regular tables in that they store both the current state of the data as well as a history of changes.
 
 [MariaDB](https://mariadb.org/?trk=article-ssr-frontend-pulse_little-text-block) is a popular open-source relational database management system that supports temporal tables. Users can create and manage [temporal tables](https://en.wikipedia.org/wiki/Temporal_database?trk=article-ssr-frontend-pulse_little-text-block) using the [SQL](https://en.wikipedia.org/wiki/SQL?trk=article-ssr-frontend-pulse_little-text-block) syntax. This allows users to easily track changes to data and access historical versions of records.

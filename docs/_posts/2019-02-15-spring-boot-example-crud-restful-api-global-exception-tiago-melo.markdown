@@ -6,8 +6,6 @@ categories: java springboot rest api
 ---
 ![Spring Boot: an example of a CRUD RESTful API with global exception handling](/assets/images/2019-02-15-e3ae59fd-0d46-40c5-97e9-a5c8791d1145/2019-02-15-banner.png)
 
-# Spring Boot: an example of a CRUD RESTful API with global exception handling
-
 As [Spring Boot](https://spring.io/projects/spring-boot) popularity keeps growing, it's becoming the framework of choice to ease the development of different kinds of applications, like web apps, stand-alone apps or RESTful APIs, for example. In this article we'll see how we can write a CRUD RESTFul API with global exception handling.
 
 ## Introduction

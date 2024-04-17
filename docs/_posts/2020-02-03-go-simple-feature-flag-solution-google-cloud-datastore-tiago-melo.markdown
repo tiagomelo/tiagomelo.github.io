@@ -6,8 +6,6 @@ categories: go gcp featureflag
 ---
 ![Go: a simple feature flag solution with Google Cloud Datastore](/assets/images/2020-02-03-48f01379-820e-4bf5-8619-81b2f7811477/2020-02-03-banner.png)
 
-# Go: a simple feature flag solution with Google Cloud Datastore
-
 In this article, we'll see what [feature flag](https://en.wikipedia.org/wiki/Feature_toggle) is, why it's useful and a simple implementation of it using [Golang](https://golang.org/) and [Google Cloud Datastore](https://cloud.google.com/datastore/).
 
 ## What is a feature flag?

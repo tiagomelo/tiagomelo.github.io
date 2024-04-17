@@ -6,8 +6,6 @@ categories: java springboot batch mysql csv
 ---
 ![Spring Boot Batch: exporting millions of records from a MySQL table to a CSV file without eating all your memory](/assets/images/2019-02-25-803f0e35-4011-4be6-beac-ff933151ccd3/2019-02-25-banner.jpeg)
 
-# Spring Boot Batch: exporting millions of records from a MySQL table to a CSV file without eating all your memory
-
 As stated in my previous posts ( [here](https://www.linkedin.com/pulse/spring-boot-example-crud-restful-api-global-exception-tiago-melo/) and [here](https://www.linkedin.com/pulse/java-appointment-scheduler-spring-boot-mysql-quartz-tiago-melo/)), [Spring Boot](https://spring.io/projects/spring-boot) came to ease the development of different kinds of applications. This time we'll write a standalone application integrating [Spring Batch](https://spring.io/projects/spring-batch) that exports data from a [MySQL](https://dev.mysql.com/) table to a [CSV file](https://pt.wikipedia.org/wiki/Comma-separated_values).
 
 ## Introduction

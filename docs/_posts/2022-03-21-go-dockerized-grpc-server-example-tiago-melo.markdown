@@ -6,8 +6,6 @@ categories: go docker grpc
 ---
 ![Go: a dockerized gRPC server example](/assets/images/2022-03-21-524c455f-acee-4f62-8d6e-c7dd597bf896/2022-03-21-banner.png)
 
-# Go: a dockerized gRPC server example
-
 It's not new to anyone that [Docker](https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block) has changed the way we ship software. The primary goal of using [Docker](https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block) is containerization, and that is to have a consistent environment for your application and does not depend on the host machine where it runs.
 
 Also, [gRPC](https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block) is becoming a popular architectural choice for writing services. You can check this [quick start](https://grpc.io/docs/languages/go/quickstart/?trk=article-ssr-frontend-pulse_little-text-block) to get a glance of how to implement a [gRPC](https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block) service in [Golang](http://golang.org?trk=article-ssr-frontend-pulse_little-text-block).

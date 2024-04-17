@@ -6,8 +6,6 @@ categories: go validation
 ---
 ![Golang: declarative validation made similar to Ruby on Rails](/assets/images/2021-04-09-eaedfc55-e5b8-49c0-a94f-af1623f4aab2/2021-04-09-banner.png)
 
-# Golang: declarative validation made similar to Ruby on Rails
-
 When it comes for validating input data, boiler plate code with a lot of if conditionals come right in the top of my head. Remembering my experience with Ruby On Rails, I was wondering if it was possible to use declarative validation in [Golang](http://golang.org), in a similar way of [Active Record validations](https://guides.rubyonrails.org/active_record_validations.html). In this article, we'll see how to achieve that.
 
 ## The domain model

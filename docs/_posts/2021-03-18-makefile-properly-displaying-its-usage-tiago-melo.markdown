@@ -6,8 +6,6 @@ categories: makefile
 ---
 ![Makefile: properly displaying its usage](/assets/images/2021-03-18-2b891bc4-66eb-4b72-bb49-2f8cb4cce367/2021-03-18-banner.png)
 
-# Makefile: properly displaying its usage
-
 [Makefile](https://en.wikipedia.org/wiki/Makefile) is an awesome tool and I use it a lot, mainly in [Golang](https://golang.org/) projects. In this quick article we'll see how to display a useful help message with all targets that are available to be called.
 
 ## Motivation

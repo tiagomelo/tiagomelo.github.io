@@ -6,8 +6,6 @@ categories: java quarkus liquibase migrations
 ---
 ![Quarkus: database migrations with Liquibase and local environment setup](/assets/images/2024-03-11-1eb57ce5-084e-459c-b022-ceda272ff399/2024-03-11-banner.jpeg)
 
-# Quarkus: database migrations with Liquibase and local environment setup
-
 I've been using [Spring Boot](https://spring.io/projects/spring-boot?trk=article-ssr-frontend-pulse_little-text-block) for many years now. It is usually my choice when it comes for [Java](https://java.com?trk=article-ssr-frontend-pulse_little-text-block) development due to its mission to ease our lives.
 
 Some of my articles on it:

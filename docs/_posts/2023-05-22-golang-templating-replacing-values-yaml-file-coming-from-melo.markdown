@@ -6,8 +6,6 @@ categories: go templating yaml
 ---
 ![Golang templating: replacing values in a YAML file with values coming from another YAML file](/assets/images/2023-05-22-bd7e472b-f2b0-4b60-85b6-23b51ba8ff7e/2023-05-22-banner.jpeg)
 
-# Golang templating: replacing values in a YAML file with values coming from another YAML file
-
 [Go](http://go.dev?trk=article-ssr-frontend-pulse_little-text-block) templating is a powerful feature provided by the language that allows you to generate text output by replacing placeholders (variables) in a template with their corresponding values. It's a convenient way to generate dynamic content, including [YAML](https://en.wikipedia.org/wiki/YAML?trk=article-ssr-frontend-pulse_little-text-block) files.
 
 [Helm](https://helm.sh/?trk=article-ssr-frontend-pulse_little-text-block), a package manager for [Kubernetes](https://kubernetes.io/?trk=article-ssr-frontend-pulse_little-text-block), utilizes [Go templating](https://pkg.go.dev/text/template?trk=article-ssr-frontend-pulse_little-text-block) to generate [Kubernetes manifest files](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/?trk=article-ssr-frontend-pulse_little-text-block) from templates.

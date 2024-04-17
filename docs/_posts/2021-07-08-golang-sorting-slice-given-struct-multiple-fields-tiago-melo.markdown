@@ -6,8 +6,6 @@ categories: go sorting
 ---
 ![Golang: sorting a slice of a given struct by multiple fields](/assets/images/2021-07-08-fdbf3afb-5612-43e6-a588-0b8d5aaf56da/2021-07-08-banner.jpeg)
 
-# Golang: sorting a slice of a given struct by multiple fields
-
 Sorting problems are often presented to candidates in code challenges. Usually the first attempt is to rollup your own sorting algorithm. But some companies want to evaluate your knowledge in a given programming language, encouraging you to use a built-in solution.
 
 In this article I'll present a sorting challenge and walk you through my proposed solution.

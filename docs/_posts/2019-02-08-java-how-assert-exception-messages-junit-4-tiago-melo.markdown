@@ -6,8 +6,6 @@ categories: java junit
 ---
 ![Java: how to assert exception messages with JUnit 4](/assets/images/2019-02-08-441e95e5-e484-4917-a0a0-a9870f429338/2019-02-08-banner.png)
 
-# Java: how to assert exception messages with JUnit 4
-
 Have you ever wanted to assert exception messages in your unit tests? Let's do this.
 
 ## Introduction

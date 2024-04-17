@@ -6,8 +6,6 @@ categories: go docker grpc tls
 ---
 ![Golang: a dockerized gRPC service using TLS](/assets/images/2022-12-26-925d49c0-a2c7-4140-844c-50bb5d97c758/2022-12-26-banner.jpeg)
 
-# Golang: a dockerized gRPC service using TLS
-
 In a [previous article](https://www.linkedin.com/pulse/go-dockerized-grpc-server-example-tiago-melo/?trk=article-ssr-frontend-pulse_little-text-block) we saw how to write and run a [gRPC](https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block) service with [Docker](https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block). Now it is time to make it secure with [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security?trk=article-ssr-frontend-pulse_little-text-block).
 
 ## TLS

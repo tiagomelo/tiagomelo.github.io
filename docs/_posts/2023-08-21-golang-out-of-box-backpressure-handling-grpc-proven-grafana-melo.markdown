@@ -6,8 +6,6 @@ categories: go grpc grafana backpressure
 ---
 ![Golang: out-of-box backpressure handling with gRPC, proven by a Grafana dashboard ](/assets/images/2023-08-21-2a6000a9-beb7-44d1-a882-be3383f28c04/2023-08-21-banner.jpeg)
 
-# Golang: out-of-box backpressure handling with gRPC, proven by a Grafana dashboard
-
 I've been writing a lot about [Go](http://go.dev?trk=article-ssr-frontend-pulse_little-text-block) and [gRPC](http://grpc.io?trk=article-ssr-frontend-pulse_little-text-block) lately:
 
 - [Golang: building a CRUD API using GRPC and MongoDB + handling arbitrary data types](https://www.linkedin.com/pulse/golang-building-crud-api-using-grpc-mongodb-handling-arbitrary-melo/?trackingId=w%2FLy8oHOSqyhQ870vBw8yg%3D%3D&trk=article-ssr-frontend-pulse_little-text-block)

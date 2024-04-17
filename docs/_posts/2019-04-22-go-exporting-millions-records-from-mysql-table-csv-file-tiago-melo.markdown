@@ -6,8 +6,6 @@ categories: go mysql
 ---
 ![Go: exporting millions of records from a MySQL table to a CSV file - a comparison with a typical Java solution](/assets/images/2019-04-22-2494642c-3f18-4d8a-bb68-1c56174bea1d/2019-04-22-banner.png)
 
-# Go: exporting millions of records from a MySQL table to a CSV file - a comparison with a typical Java solution
-
 [In a previous post](https://www.linkedin.com/pulse/spring-boot-batch-exporting-millions-records-from-mysql-tiago-melo/), I've shown how to export all table rows to a [CSV file](https://pt.wikipedia.org/wiki/Comma-separated_values) in [Java](https://www.java.com), using [MySQL](https://dev.mysql.com/), [Spring Boot](https://spring.io/projects/spring-boot) and [Spring Batch](https://spring.io/projects/spring-batch). This time I'll do the same using [Go](https://golang.org/).
 
 ## Introduction

@@ -6,8 +6,6 @@ categories: go kafka mongodb realtime
 ---
 ![Real time data processing: easily processing 10 million messages with Golang, Kafka and MongoDB](/assets/images/2023-06-12-d91183ef-d837-45ca-8696-61d3a7cba8d8/2023-06-12-banner.jpeg)
 
-# Real time data processing: easily processing 10 million messages with Golang, Kafka and MongoDB
-
 Having used [Kafka](https://kafka.apache.org/?trk=article-ssr-frontend-pulse_little-text-block) for some years now, I have gained experience with its topics/subscribers model. It's an open-source distributed event streaming platform known for its high-throughput, fault-tolerant, and scalable nature. It is designed to handle large volumes of real-time data efficiently and reliably, making it a popular choice for building robust data pipelines and streaming applications.
 
 [MongoDB](https://www.mongodb.com/?trk=article-ssr-frontend-pulse_little-text-block) is an excellent complement to [Kafka](https://kafka.apache.org/?trk=article-ssr-frontend-pulse_little-text-block) for real-time data processing. Its flexible document model easily handles diverse data formats, while its scalability accommodates high data ingestion rates. [MongoDB's](https://www.mongodb.com/?trk=article-ssr-frontend-pulse_little-text-block) indexing, querying, and replica set features enable efficient access and fault tolerance. Integrating [MongoDB](https://www.mongodb.com/?trk=article-ssr-frontend-pulse_little-text-block) with [Kafka](https://kafka.apache.org/?trk=article-ssr-frontend-pulse_little-text-block) empowers organizations to build scalable, real-time data pipelines for modern applications.

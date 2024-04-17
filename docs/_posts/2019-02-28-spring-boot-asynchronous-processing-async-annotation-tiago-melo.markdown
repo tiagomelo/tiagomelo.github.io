@@ -6,8 +6,6 @@ categories: java springboot asynchronous
 ---
 ![Spring Boot: asynchronous processing with @Async annotation](/assets/images/2019-02-28-10d30bca-f9d5-40a3-a033-4b8bc1105543/2019-02-28-banner.jpeg)
 
-# Spring Boot: asynchronous processing with @Async annotation
-
 If you are following my recent articles about [Spring Boot](https://spring.io/projects/spring-boot) ( [here](https://www.linkedin.com/pulse/spring-boot-example-crud-restful-api-global-exception-tiago-melo/), [here](https://www.linkedin.com/pulse/java-appointment-scheduler-spring-boot-mysql-quartz-tiago-melo/) and [here](https://www.linkedin.com/pulse/spring-boot-batch-exporting-millions-records-from-mysql-tiago-melo/)), you should have noticed that it simplifies application development a lot. In this article we'll cover how the framework supports asynchronous processing.
 
 ## Introduction

@@ -6,8 +6,6 @@ categories: go vscode
 ---
 ![Golang: configuring useful user snippets in VSCode](/assets/images/2022-09-16-e08e94e2-b72a-4b4e-9080-21fbc46b458d/2022-09-16-banner.jpeg)
 
-# Golang: configuring useful user snippets in VSCode
-
 [VSCode](http:// Visual Studio Code - Code Editing. Redefinedhttps://code.visualstudio.com?trk=article-ssr-frontend-pulse_little-text-block) is my favorite IDE nowadays: simple, lightweight and versatile.
 
 In this article I'll show how we can configure some useful user snippets in [VSCode](http:// Visual Studio Code - Code Editing. Redefinedhttps://code.visualstudio.com?trk=article-ssr-frontend-pulse_little-text-block) to make our life easier.

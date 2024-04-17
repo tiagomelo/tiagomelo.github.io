@@ -6,8 +6,6 @@ categories: go grpc mongodb
 ---
 ![Golang: building a CRUD API using GRPC and MongoDB + handling arbitrary data types](/assets/images/2023-07-17-fc3352e1-3ef8-424c-a0af-7aa5e0492d3a/2023-07-17-banner.jpeg)
 
-# Golang: building a CRUD API using GRPC and MongoDB + handling arbitrary data types
-
 If you follow my posts, you may remember the articles I've written talking about [gRPC](https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block) services:
 
 - [Golang: a dockerized gRPC server example](https://www.linkedin.com/pulse/go-dockerized-grpc-server-example-tiago-melo?trk=article-ssr-frontend-pulse_little-text-block)

@@ -6,8 +6,6 @@ categories: go aws s3
 ---
 ![Golang: uploading files to an AWS S3 bucket using pre-signed URL](/assets/images/2022-10-14-d040f8c1-9082-4671-b37e-01df4eebb1d1/2022-04-14-banner.jpeg)
 
-# Golang: uploading files to an AWS S3 bucket using pre-signed URL
-
 We all know that it is a best practice to keep [S3 buckets](https://aws.amazon.com/s3/?trk=article-ssr-frontend-pulse_little-text-block) private and only grant public access when absolutely required. So how can we grant a client (temporarily) to put an object on it without changing the bucket's [ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html?trk=article-ssr-frontend-pulse_little-text-block), creating roles or providing a user on your account? There's where [S3 pre-signed URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html?trk=article-ssr-frontend-pulse_little-text-block) come to play.
 
 ## Pre-signed URLs

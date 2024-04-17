@@ -6,8 +6,6 @@ categories: bash gnuplot json
 ---
 ![Bash: how to plot a line graph in Gnuplot 5 from a file with JSON lines](/assets/images/2019-02-27-40bae51c-7ae4-469c-a5e5-efca9880a881/2019-02-27-banner.jpeg)
 
-# Bash: how to plot a line graph in Gnuplot 5 from a file with JSON lines
-
 Have you ever needed to plot a graph from a data file? Let's do it.
 
 ## Introduction

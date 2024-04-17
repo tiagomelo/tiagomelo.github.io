@@ -6,8 +6,6 @@ categories: java springboot elasticsearch logstash kibana
 ---
 ![Java: centralized logging with Spring Boot, Elasticsearch, Logstash and Kibana](/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/2019-03-18-banner.png)
 
-# Java: centralized logging with Spring Boot, Elasticsearch, Logstash and Kibana
-
 Logging is a crucial aspect of an application. And when we're dealing with a distributed environment, like [microservice architecture](https://en.wikipedia.org/wiki/Microservices) or having multiple instances running with the help of a [load balancer](https://en.wikipedia.org/wiki/Load_balancing_(computing)), centralized logging becomes a necessity.
 
 In this article, we’ll see how to enable centralized logging in a typical [Spring Boot](https://spring.io/projects/spring-boot) with the [ELK stack](https://www.elastic.co/elk-stack), which is comprised of [Elasticsearch](https://www.elastic.co/), [Logstash](https://www.elastic.co/products/logstash) and [Kibana](https://www.elastic.co/products/kibana).

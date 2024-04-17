@@ -6,8 +6,6 @@ categories: go cloudsql mysql ssl
 ---
 ![Go: how to connect to a CloudSQL instance (MySQL) over SSL](/assets/images/2019-12-24-cfacf19e-1d43-48b8-820e-d4165f7a5c17/2019-12-24-banner.png)
 
-# Go: how to connect to a CloudSQL instance (MySQL) over SSL
-
 If you read my [previous article](https://www.linkedin.com/pulse/tale-data-migration-moving-195m-records-from-aws-gcp-using-tiago-melo/), you've noticed that I connect to a [CloudSQL](https://cloud.google.com/sql/) instance (running [MySQL](https://www.linkedin.com/redir/general-malware-page?url=https%3A%2F%2Fwww%2emysql%2ecom%2F)) to load some [CSV](https://pt.wikipedia.org/wiki/Comma-separated_values) files into tables.
 
 What if that instance, in particular, is configured to accept only secure connections ( [SSL](https://en.wikipedia.org/wiki/SSL))?

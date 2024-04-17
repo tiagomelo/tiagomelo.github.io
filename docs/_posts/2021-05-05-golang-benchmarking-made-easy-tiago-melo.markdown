@@ -6,8 +6,6 @@ categories: go benchmark tests
 ---
 ![Golang: benchmarking made easy](/assets/images/2021-05-05-5f92c664-5beb-40ad-ad86-344b581c3d84/2021-05-05-banner.png)
 
-# Golang: benchmarking made easy
-
 Benchmarking your application is often a good idea when it comes for fine tuning its performance.
 
 The [Golang](https://golang.org/) [testing](http://golang.org/pkg/testing/) package contains a benchmarking facility that can be used to examine the performance of your [Golang](https://golang.org/) code. In this article we'll see how to write simple benchmark tests that are able to provide us good insights about a given algorithmic solution.

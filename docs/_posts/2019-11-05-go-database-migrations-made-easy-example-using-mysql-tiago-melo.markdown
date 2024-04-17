@@ -6,8 +6,6 @@ categories: go migrations mysql
 ---
 ![Go: database migrations made easy - an example using MySQL](/assets/images/2019-11-05-41fcf0f8-7d0c-494a-87f9-89f30deb1c0f/2019-11-05-banner.png)
 
-# Go: database migrations made easy - an example using MySQL
-
 In my [article](https://www.linkedin.com/pulse/java-database-versioning-liquibase-tiago-melo/) about database migrations, I've shown how database migrations are done on [Ruby On Rails](https://rubyonrails.org/) and brought it to the [Java](https://www.java.com/) world. It's time to see how it works in [Go](https://golang.org/).
 
 ## Meet Migrate

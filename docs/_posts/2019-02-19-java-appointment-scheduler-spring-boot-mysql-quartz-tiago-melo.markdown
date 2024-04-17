@@ -6,8 +6,6 @@ categories: java springboot mysql quartz
 ---
 ![Java: an appointment scheduler with Spring Boot, MySQL and Quartz](/assets/images/2019-02-19-25799d90-eb49-4c8d-8421-0d41f4183572/2019-02-19-banner.png)
 
-# Java: an appointment scheduler with Spring Boot, MySQL and Quartz
-
 Let's continue to explore different ways to ease application development with [Spring Boot](https://spring.io/projects/spring-boot): this time we'll write a RESTFul API to schedule appointments using [Quartz](http://www.quartz-scheduler.org/) and [MySQL](https://dev.mysql.com/).
 
 ## Introduction

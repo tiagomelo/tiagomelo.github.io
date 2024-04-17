@@ -6,8 +6,6 @@ categories: go vscode debug
 ---
 ![Golang: debugging CLI applications in VSCode](/assets/images/2023-06-14-4c053177-31f1-4b87-b2c8-d7a44dda2644/2023-06-14-banner.jpeg)
 
-# Golang: debugging CLI applications in VSCode
-
 [VSCode](https://code.visualstudio.com/?trk=article-ssr-frontend-pulse_little-text-block), also known as Visual Studio Code, is a highly versatile and feature-rich code editor that has won the hearts of developers worldwide. With its clean and intuitive interface, it provides a delightful coding experience, making it a top choice for many professionals and enthusiasts alike.
 
 [In a previous article of mine](https://www.linkedin.com/pulse/golang-configuring-useful-user-snippets-vscode-tiago-melo?trk=article-ssr-frontend-pulse_little-text-block) we saw how to configure useful user snippets. Now I want to explore its debugging capabilities.

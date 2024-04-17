@@ -8,8 +8,6 @@ image: "/assets/images/2024-04-17-jekyll-skip-codeblock-evaluation/jekyll-logo.j
 
 ![jekyll](/assets/images/2024-04-17-jekyll-skip-codeblock-evaluation/jekyll-logo.jpg)
 
-# Jekyll: how to skip code block evaluation
-
 [Jekyll](https://jekyllrb.com/) is a nice tool that enables you write a static website by writing plain text files. This website used it to generate content from [Markdown](https://en.wikipedia.org/wiki/Markdown) files.
 
 Very often I use code blocks to display some code. Example from [https://tiagomelo.info/go/templating/yaml/2023/05/22/golang-templating-replacing-values-yaml-file-coming-from-melo.html](https://tiagomelo.info/go/templating/yaml/2023/05/22/golang-templating-replacing-values-yaml-file-coming-from-melo.html):

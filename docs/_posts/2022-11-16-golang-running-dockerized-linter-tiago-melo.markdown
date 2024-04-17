@@ -6,8 +6,6 @@ categories: go docker linter
 ---
 ![Golang: running a dockerized linter](/assets/images/2022-11-16-7c042d55-5c7f-45a4-8c48-564ba80c1593/2022-11-16-banner.jpeg)
 
-# Golang: running a dockerized linter
-
 Let's begin this article with [Wikipedia's definition for Linter](https://en.wikipedia.org/wiki/Lint_(software)?trk=article-ssr-frontend-pulse_little-text-block):
 
 > Lint, or a linter, is a [static code analysis](https://en.wikipedia.org/wiki/Static_program_analysis?trk=article-ssr-frontend-pulse_little-text-block) tool used to flag programming errors, [bugs](https://en.wikipedia.org/wiki/Software_bug?trk=article-ssr-frontend-pulse_little-text-block), stylistic errors and suspicious constructs.

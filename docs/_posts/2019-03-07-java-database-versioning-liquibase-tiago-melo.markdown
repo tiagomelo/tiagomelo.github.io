@@ -6,8 +6,6 @@ categories: java springboot liquibase
 ---
 ![Java: database versioning with Liquibase](/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/2019-03-07-banner.jpeg)
 
-# Java: database versioning with Liquibase
-
 Versioning database changes is as important as versioning source code. By using a database migration tool we can safely manage how the database evolves, instead of running a bunch of non versioned loose [SQL](https://en.wikipedia.org/wiki/SQL) files.
 
 In some frameworks like [Ruby On Rails](https://rubyonrails.org/), database versioning occurs along the development. But when it comes to [Java](https://www.java.com) world, I don't see it happening so often.

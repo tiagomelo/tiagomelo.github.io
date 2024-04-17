@@ -6,8 +6,6 @@ categories: go mysql
 ---
 ![Go: reading data from MySQL tables in a more flexible way](/assets/images/2019-05-16-e3187e8a-1fcb-494a-ae2b-6074ebcbba68/2019-05-16-banner.png)
 
-# Go: reading data from MySQL tables in a more flexible way
-
 [In a previous article](https://www.linkedin.com/pulse/go-exporting-millions-records-from-mysql-table-csv-file-tiago-melo/), we read data from a given [MySQL](https://dev.mysql.com/) table and exported it to a [CSV file](https://pt.wikipedia.org/wiki/Comma-separated_values). In this article, I'll show a more generic approach to do it.
 
 ## Introduction

@@ -6,8 +6,6 @@ categories: go mysql json
 ---
 ![Go: Handling JSON in MySQL](/assets/images/2021-01-11-0fbfe62b-8d26-4bb7-bf58-ee3443f64f45/2021-01-11-banner.jpeg)
 
-# Go: Handling JSON in MySQL
-
 In this article, we'll see how to read/write [JSON](https://www.json.org/) data from/into a [MySQL](https://www.mysql.com/) table.
 
 ## Motivation

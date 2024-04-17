@@ -6,8 +6,6 @@ categories: go mysql
 ---
 ![MongoDB and docker-compose: how to setup custom user and password automatically](/assets/images/2023-05-08-3deeb1a8-e116-46bc-8dfa-921936f63284/2023-05-08-banner.jpeg)
 
-# MongoDB and docker-compose: how to setup custom user and password automatically
-
 [MongoDB](http://mongodb.com?trk=article-ssr-frontend-pulse_little-text-block) is a widely used [NoSQL](https://en.wikipedia.org/wiki/NoSQL?trk=article-ssr-frontend-pulse_little-text-block) database management system that offers several features such as scalability, high performance, and flexibility. However, one important aspect that users need to keep in mind when setting up [MongoDB](http://mongodb.com/?trk=article-ssr-frontend-pulse_little-text-block) is that the authentication feature is not enabled by default. This means that when you create a new container for [MongoDB](http://mongodb.com/?trk=article-ssr-frontend-pulse_little-text-block) using [docker-compose](https://docs.docker.com/compose/?trk=article-ssr-frontend-pulse_little-text-block), you will need to enable authentication manually to ensure that only authorized users have access to the database.
 
 But the whole point of setting up external dependencies using tools like [docker-compose](https://docs.docker.com/compose/?trk=article-ssr-frontend-pulse_little-text-block) is to automate everything as much as possible to save precious time.

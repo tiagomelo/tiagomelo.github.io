@@ -6,8 +6,6 @@ categories: java multithread junit
 ---
 ![Java: Multithread testing using JUnit](/assets/images/2019-02-01-5b678502-8a1c-4ebd-b298-36e03fa29a94/2019-02-01-banner.jpeg)
 
-# Java: Multithread testing using JUnit
-
 We all know that Java offers a mechanism to avoid race conditions by synchronizing thread access to shared data: the _synchronized_ keyword. But what if you want to test a [synchronized method](https://docs.oracle.com/javase/tutorial/essential/concurrency/syncmeth.html) using JUnit? Let's do this.
 
 ## Introduction

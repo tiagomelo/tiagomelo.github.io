@@ -6,8 +6,6 @@ categories: go syscall
 ---
 ![Golang: handling System Calls and Capturing stderr](/assets/images/2023-12-15-933fcf74-41ad-428d-8cbe-55b2b1a713d8/2023-12-15-banner.jpeg)
 
-# Golang: handling System Calls and Capturing stderr
-
 ## Introduction
 
 In the world of [Go](https://go.dev/?trk=article-ssr-frontend-pulse_little-text-block) programming, one often encounters scenarios where it's necessary to interact with the underlying system through the execution of system commands. This interaction is typically handled using the exec.Cmd struct from [Go](https://go.dev/?trk=article-ssr-frontend-pulse_little-text-block)'s os/exec package, a powerful tool that enables [Go](https://go.dev/?trk=article-ssr-frontend-pulse_little-text-block) programs to run external commands. It's a feature often utilized for a wide range of purposes, from simple tasks like file operations to more complex ones like interfacing with system utilities or even integrating with other programming languages.

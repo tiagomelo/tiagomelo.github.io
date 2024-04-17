@@ -6,8 +6,6 @@ categories: go mysql aws gcp
 ---
 ![A tale of data migration: moving 195M records from AWS to GCP using Go](/assets/images/2019-07-18-5f51913f-d8a5-4af7-b1d5-1fccd9a43af3/2019-07-18-banner.png)
 
-# A tale of data migration: moving 195M records from AWS to GCP using Go
-
 When it comes to data migration, a number of different strategies can be adopted. And depending on the limitations faced, well, we have to be creative.
 
 In this article, we'll explore a real case scenario, presenting a strategy that I've successfully implemented.

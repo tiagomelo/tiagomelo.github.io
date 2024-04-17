@@ -6,8 +6,6 @@ categories: perl
 ---
 ![Perl: writing a directory watcher](/assets/images/2019-02-03-58be17aa-21ab-401e-9f23-5fa6fb6f81df/2019-02-03-banner.jpeg)
 
-# Perl: writing a directory watcher
-
 Have you ever needed to watch a directory for changes? Let's do this.
 
 ## Introduction
