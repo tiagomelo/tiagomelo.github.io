@@ -12,7 +12,7 @@ run:
 .PHONY: show-theme-files
 ## show-theme-files: shows theme files
 show-theme-files:
-	@ open $$(bundle info --path minima)
+	@ cd docs && open $$(bundle info --path minima)
 
 .PHONY: create-post
 ## create-post: creates empty post markdown file
