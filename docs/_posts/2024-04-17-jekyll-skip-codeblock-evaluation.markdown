@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Jekyll: how to skip code block evaluation"
-date:   2024-04-12 13:26:01 -0300
+date:   2024-04-17 13:26:01 -0300
 categories: quicktip jekyll liquid
 image: "/assets/images/2024-04-17-jekyll-skip-codeblock-evaluation/jekyll-logo.jpg"
 ---
