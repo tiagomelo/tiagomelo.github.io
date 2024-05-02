@@ -6,6 +6,10 @@ permalink: /opensource/
 
 Some of my open source projects:
 
+[go-project-config](https://github.com/tiagomelo/go-project-config): A clean and neat way for managing configuration data from environment variables for your Go project.
+
+![go-project-config](/assets/images/2024-05-02-goprojconfig-opensource/banner.png)
+
 [go-templates](https://github.com/tiagomelo/go-templates): A repository hosting a collection of Go project templates.
 - Example of a CRUD gRPC service
 - Example of a CRUD gRPC service, with TLS
