@@ -1,0 +1,9 @@
+---
+layout: post
+title:  "Perl: forking made easy"
+date:   2021-11-22 13:26:01 -0300
+categories: perl concurrency forking
+---
+![Perl: forking made easy](/assets/images/2021-11-22-8BA0473F-EF09-4523-B493-C0A1BE3F56B2/2021-11-22-banner.png)
+
+See full article here: [https://www.linkedin.com/pulse/perl-forking-made-easy-tiago-melo/](https://www.linkedin.com/pulse/perl-forking-made-easy-tiago-melo/)
