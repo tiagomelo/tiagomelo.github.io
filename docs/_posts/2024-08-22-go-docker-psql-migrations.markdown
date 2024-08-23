@@ -6,7 +6,7 @@ categories: go golang migrations psql
 image: "/assets/images/2024-08-22-go-docker-psql-migrations/banner.png"
 ---
 
-![banner](/docs/assets/images/2024-08-22-go-docker-psql-migrations/banner.png)
+![banner](/assets/images/2024-08-22-go-docker-psql-migrations/banner.png)
 
 ## introduction
 
