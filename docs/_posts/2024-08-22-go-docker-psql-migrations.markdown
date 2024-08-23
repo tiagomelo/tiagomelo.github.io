@@ -290,7 +290,6 @@ Postgres is up and running.
 1/u create_users_table (4.0425ms)
 2/u create_posts_table (9.23ms)
 3/u create_comments_table (12.234ms)
-4/u add_status_to_posts_table (14.9955ms)
 +----------------------+--------------------+
 | Table Name           | Column Name        |
 +----------------------+--------------------+
@@ -304,7 +303,6 @@ Postgres is up and running.
 | posts                | title              |
 | posts                | content            |
 | posts                | created_at         |
-| posts                | status             |
 | schema_migrations    | version            |
 | schema_migrations    | dirty              |
 | users                | id                 |
