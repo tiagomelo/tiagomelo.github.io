@@ -6,6 +6,10 @@ permalink: /opensource/
 
 Some of my open source projects:
 
+[go-grpc-bin](https://github.com/tiagomelo/go-grpc-bin): gRPC request & response service.
+
+![go-grpc-bin](/assets/images/opensourceprojects/go-grpc-bin/go-grpc-bin.png)
+
 [go-saga](https://github.com/tiagomelo/go-saga): A Golang implementation of saga pattern.
 
 ![go-saga](/assets/images/opensourceprojects/go-saga/go-saga.png)
