@@ -1,0 +1,379 @@
+<p><img src="/assets/images/2024-08-22-go-docker-psql-migrations/banner.png" alt="banner" /></p>
+
+<h2 id="introduction">introduction</h2>
+
+<p>It is no secret that I always use <a href="https://github.com/golang-migrate/migrate">golang-migrate</a> for managing database migrations in my <a href="https://go.dev">Go</a> projects:</p>
+
+<ul>
+  <li><a href="https://www.linkedin.com/pulse/golang-restful-api-running-kubernetes-mariadb-database-tiago-melo/">Golang: A RESTful api running in Kubernetes + MariaDB + database migrations</a></li>
+  <li><a href="https://tiagomelo.info/go/mariadb/temporaltables/2023/04/06/golang-restful-api-using-temporal-table-mariadb-tiago-melo.html">Golang: a RESTful API using temporal table with MariaDB</a></li>
+</ul>
+
+<p>Now it is time to dedicate a post covering how to manage database migrations using <a href="https://docker.com">Docker</a>.</p>
+
+<p>In this example, we’ll use <a href="https://www.postgresql.org/">PostgreSQL</a> dockerized instance via - <a href="https://docs.docker.com/compose/">docker-compose</a>.</p>
+
+<h2 id="motivation">motivation</h2>
+
+<p><a href="https://github.com/golang-migrate/migrate">golang-migrate</a> is an excellent tool. You can install it at the OS level, but I prefer to <a href="https://github.com/golang-migrate/migrate?tab=readme-ov-file#docker-usage">dockerize it</a>. This can ease the life among developers of a given project.</p>
+
+<h2 id="sample-domain">sample domain</h2>
+
+<p><img src="/assets/images/2024-08-22-go-docker-psql-migrations/erd.png" alt="erd" /></p>
+
+<h2 id="the-project">the project</h2>
+
+<p><strong>.env</strong>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POSTGRES_USER=postgres
+POSTGRES_PASSWORD=x63Qd7qb
+POSTGRES_DB=migrations_tutorial
+POSTGRES_HOST=localhost:5432
+POSTGRES_DATABASE_CONTAINER_NAME=psql_migrations_db
+POSTGRES_DATABASE_CONTAINER_NETWORK_NAME=go-docker-psql-migrations_psqldb-network
+</code></pre></div></div>
+
+<p>by using <a href="https://tiagomelo.info/opensource/golang/2024/05/02/goprojconfig-opensource.html">go-project-config</a>, an open source tool of mine, we’ll generate the config files to use it in our application:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ goprojconfig -p config -e .env
+created: config/config.go
+created: config/config_test.go
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">go-docker-psql-migrations_psqldb-network</code> is the generated network name by Docker. We’ll use it when invoking <code class="language-plaintext highlighter-rouge">migrate</code> via Docker.</p>
+
+<p><strong>docker-compose.yaml</strong>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>services:
+  psql_migrations_db:
+    image: postgres
+    container_name: ${POSTGRES_DATABASE_CONTAINER_NAME}
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - psql_migrations_db_data:/var/lib/postgresql/data
+    networks:
+      - psqldb-network
+
+networks:
+  psqldb-network:
+    driver: bridge
+
+volumes:
+  psql_migrations_db_data:
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">psqldb-network</code> is the network name that will be created when invoking <code class="language-plaintext highlighter-rouge">docker-compose</code>, and it can be access via the name <code class="language-plaintext highlighter-rouge">go-docker-psql-migrations_psqldb-network</code>.</p>
+
+<p><strong>main.go</strong>:</p>
+
+<p>we have a simple app that displays all existing tables along with their column names:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Copyright (c) 2024 Tiago Melo. All rights reserved.
+// Use of this source code is governed by the MIT License that can be found in
+// the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/pkg/errors"
+	"github.com/tiagomelo/go-docker-psql-migrations/config"
+	"github.com/tiagomelo/go-docker-psql-migrations/db"
+)
+
+func main() {
+	cfg, err := config.Read()
+	if err != nil {
+		fmt.Println(errors.Wrap(err, "reading config"))
+		os.Exit(1)
+	}
+	db, err := db.Connect(cfg.PostgresUser, cfg.PostgresPassword, cfg.PostgresHost, cfg.PostgresDb)
+	if err != nil {
+		fmt.Println(errors.Wrap(err, "connecting to db"))
+		os.Exit(1)
+	}
+	query := `
+        SELECT
+            table_name,
+            column_name
+        FROM
+            information_schema.columns
+        WHERE
+            table_schema = 'public'
+        ORDER BY
+            table_name,
+            ordinal_position;
+    `
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Println(errors.Wrap(err, "executing query"))
+		os.Exit(1)
+	}
+	defer rows.Close()
+	fmt.Println("+----------------------+--------------------+")
+	fmt.Println("| Table Name           | Column Name        |")
+	fmt.Println("+----------------------+--------------------+")
+	var tableName, columnName string
+	for rows.Next() {
+		err := rows.Scan(&amp;tableName, &amp;columnName)
+		if err != nil {
+			fmt.Println(errors.Wrap(err, "scanning query results"))
+			os.Exit(1)
+		}
+		fmt.Printf("| %-20s | %-18s |\n", tableName, columnName)
+	}
+	fmt.Println("+----------------+--------------------------+")
+	if err = rows.Err(); err != nil {
+		fmt.Println(errors.Wrap(err, "looping through returned rows"))
+		os.Exit(1)
+	}
+}
+
+</code></pre></div></div>
+
+<p><strong>Makefile</strong></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>include .env
+export
+
+# ==============================================================================
+# Useful variables
+
+# Version - this is optionally used on goto command
+V?=
+
+# Number of migrations - this is optionally used on up and down commands
+N?=
+
+# PSQL domain source name string
+PSQL_DSN ?= $(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/$(POSTGRES_DB)
+
+.PHONY: help
+## help: shows this help message
+help:
+	@ echo "Usage: make [target]\n"
+	@ sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+
+# ==============================================================================
+# DB
+
+.PHONY: start-psql
+## start-psql: starts psql instance
+start-psql:
+	@ docker-compose up -d
+	@ echo "Waiting for Postgres to start..."
+	@ until docker exec $(POSTGRES_DATABASE_CONTAINER_NAME) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)  -c "SELECT 1;" &gt;/dev/null 2&gt;&amp;1; do \
+		echo "Postgres not ready, sleeping for 5 seconds..."; \
+		sleep 5; \
+	done
+	@ echo "Postgres is up and running."
+
+.PHONY: stop-psql
+## stop-psql: stops psql instance
+stop-psql:
+	@ docker-compose down
+
+.PHONY: psql-console
+## psql-console: opens psql terminal
+psql-console: export PGPASSWORD=$(POSTGRES_PASSWORD)
+psql-console:
+	@ docker exec -it $(POSTGRES_DATABASE_CONTAINER_NAME) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
+# ==============================================================================
+# DB migrations
+
+.PHONY: create-migration
+## create-migration: creates a migration file
+create-migration:
+	@ if [ -z "$(NAME)" ]; then echo &gt;&amp;2 "please set the name of the migration via the variable NAME"; exit 2; fi
+	@ docker run --rm -v `pwd`/db/migrations:/migrations migrate/migrate create -ext sql -dir /migrations -seq $(NAME)
+
+.PHONY: migrate-up
+## migrate-up: runs migrations up to N version (optional)
+migrate-up: start-psql
+	@ docker run --rm --network $(POSTGRES_DATABASE_CONTAINER_NETWORK_NAME) -v `pwd`/db/migrations:/migrations migrate/migrate -database 'postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_DATABASE_CONTAINER_NAME):5432/$(POSTGRES_DB)?sslmode=disable' -path /migrations up $(N)
+
+.PHONY: migrate-down
+## migrate-down: runs migrations down to N version (optional)
+migrate-down:
+	@ if [ -z "$(N)" ]; then \
+		docker run --rm --network $(POSTGRES_DATABASE_CONTAINER_NETWORK_NAME) -v `pwd`/db/migrations:/migrations migrate/migrate -database 'postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_DATABASE_CONTAINER_NAME):5432/$(POSTGRES_DB)?sslmode=disable' -path /migrations down -all; \
+	else \
+		docker run --rm --network $(POSTGRES_DATABASE_CONTAINER_NETWORK_NAME) -v `pwd`/db/migrations:/migrations migrate/migrate -database 'postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_DATABASE_CONTAINER_NAME):5432/$(POSTGRES_DB)?sslmode=disable' -path /migrations down $(N); \
+	fi
+
+.PHONY: migrate-version
+## migrate-version: shows current migration version number
+migrate-version:
+	@ docker run --rm --network $(POSTGRES_DATABASE_CONTAINER_NETWORK_NAME) -v `pwd`/db/migrations:/migrations migrate/migrate -database 'postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_DATABASE_CONTAINER_NAME):5432/$(POSTGRES_DB)?sslmode=disable' -path /migrations version
+
+.PHONY: migrate-force-version
+## migrate-force-version: forces migrations to version V
+migrate-force-version:
+	@ if [ -z "$(V)" ]; then echo &gt;&amp;2 please set version via variable V; exit 2; fi
+	@ docker run --rm --network $(POSTGRES_DATABASE_CONTAINER_NETWORK_NAME) -v `pwd`/db/migrations:/migrations migrate/migrate -database 'postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_DATABASE_CONTAINER_NAME):5432/$(POSTGRES_DB)?sslmode=disable' -path /migrations force $(V)
+
+# ==============================================================================
+# Unit tests
+
+.PHONY: test
+## test: run unit tests
+test:
+	@ go test -v ./... -count=1
+
+# ==============================================================================
+# App execution
+
+.PHONY: run
+## run: runs the app
+run: migrate-up
+	@ go run cmd/main.go
+
+</code></pre></div></div>
+
+<p>I’ve found a pretty cool tool called <a href="https://github.com/dnaeon/makefile-graph">makefile-graph</a>, which generates a graph representing the relationships between targets.</p>
+
+<p><img src="/assets/images/2024-08-22-go-docker-psql-migrations/graph.png" alt="graph" /></p>
+
+<h2 id="running-it">running it</h2>
+
+<p>first, we need to understand how to invoke <code class="language-plaintext highlighter-rouge">migrate</code> via docker.</p>
+
+<p>this is the general sintax:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run --rm -v &lt;migration_id&gt;:/migrations migrate/migrate &lt;command&gt;
+</code></pre></div></div>
+
+<p>Explanation:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">$(pwd)/db/migrations</code>: This expands to the absolute path of your db/migrations directory, based on your current working directory.</li>
+  <li><code class="language-plaintext highlighter-rouge">/migrations</code>: This is the target directory inside the Docker container where the db/migrations directory will be mounted.</li>
+</ul>
+
+<h3 id="invoking-our-program">invoking our program</h3>
+
+<p>by issuing <code class="language-plaintext highlighter-rouge">make run</code>, it will:</p>
+
+<ol>
+  <li>start <a href="https://www.postgresql.org/">PostgreSQL</a> dockerized instance via - <a href="https://docs.docker.com/compose/">docker-compose</a>;</li>
+  <li>wait for <a href="https://www.postgresql.org/">PostgreSQL</a> to be active and ready to accept connections;</li>
+  <li>apply database migrations;</li>
+  <li>run <code class="language-plaintext highlighter-rouge">cmd/main.go</code>.</li>
+</ol>
+
+<p>sample output when running it for the first time:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ make run
+[+] Running 3/3
+ ✔ Network go-docker-psql-migrations_psqldb-network            Created                                                                                                 0.0s 
+ ✔ Volume "go-docker-psql-migrations_psql_migrations_db_data"  Created                                                                                                 0.0s 
+ ✔ Container psql_migrations_db                                Started                                                                                                 0.1s 
+Waiting for Postgres to start...
+Postgres not ready, sleeping for 5 seconds...
+Postgres is up and running.
+1/u create_users_table (4.0425ms)
+2/u create_posts_table (9.23ms)
+3/u create_comments_table (12.234ms)
++----------------------+--------------------+
+| Table Name           | Column Name        |
++----------------------+--------------------+
+| comments             | id                 |
+| comments             | post_id            |
+| comments             | user_id            |
+| comments             | comment            |
+| comments             | created_at         |
+| posts                | id                 |
+| posts                | user_id            |
+| posts                | title              |
+| posts                | content            |
+| posts                | created_at         |
+| schema_migrations    | version            |
+| schema_migrations    | dirty              |
+| users                | id                 |
+| users                | username           |
+| users                | email              |
+| users                | created_at         |
++----------------+--------------------------+
+</code></pre></div></div>
+
+<h3 id="adding-a-new-migration">adding a new migration</h3>
+
+<p>let’s add a <code class="language-plaintext highlighter-rouge">status</code> column to the <code class="language-plaintext highlighter-rouge">posts</code> table:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ make create-migration NAME=add_status_to_posts_table
+/migrations/000004_add_status_to_posts_table.up.sql
+/migrations/000004_add_status_to_posts_table.down.sql
+</code></pre></div></div>
+
+<p>our <code class="language-plaintext highlighter-rouge">000004_add_status_to_posts_table.up.sql</code> migration is:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ALTER TABLE posts
+ADD COLUMN status VARCHAR(20) DEFAULT 'draft';
+</code></pre></div></div>
+
+<p>while our <code class="language-plaintext highlighter-rouge">000004_add_status_to_posts_table.down</code> migration is:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ALTER TABLE posts
+DROP COLUMN status;
+</code></pre></div></div>
+
+<p>then, let’s run it again:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ make run
+[+] Running 1/0
+ ✔ Container psql_migrations_db  Running                                                                                                                               0.0s 
+Waiting for Postgres to start...
+Postgres is up and running.
+4/u add_status_to_posts_table (3.515458ms)
++----------------------+--------------------+
+| Table Name           | Column Name        |
++----------------------+--------------------+
+| comments             | id                 |
+| comments             | post_id            |
+| comments             | user_id            |
+| comments             | comment            |
+| comments             | created_at         |
+| posts                | id                 |
+| posts                | user_id            |
+| posts                | title              |
+| posts                | content            |
+| posts                | created_at         |
+| posts                | status             |
+| schema_migrations    | version            |
+| schema_migrations    | dirty              |
+| users                | id                 |
+| users                | username           |
+| users                | email              |
+| users                | created_at         |
++----------------+--------------------------+
+</code></pre></div></div>
+
+<h2 id="available-makefile-targets">available Makefile targets</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ make help
+Usage: make [target]
+
+  help                    shows this help message
+  start-psql              starts psql instance
+  stop-psql               stops psql instance
+  psql-console            opens psql terminal
+  create-migration        creates a migration file
+  migrate-up              runs migrations up to N version (optional)
+  migrate-down            runs migrations down to N version (optional)
+  migrate-version         shows current migration version number
+  migrate-force-version   forces migrations to version V
+  test                    run unit tests
+  run                     runs the app
+
+</code></pre></div></div>
+
+<h2 id="download-the-source">download the source</h2>
+
+<p>Here: <a href="https://github.com/tiagomelo/go-docker-psql-migrations">https://github.com/tiagomelo/go-docker-psql-migrations</a></p>

@@ -1,0 +1,277 @@
+<p><img src="/assets/images/2024-09-05-perl-mojolicious-ws-server/banner.png" alt="banner" /></p>
+
+<h1 id="introduction">introduction</h1>
+
+<p>In this article, we’ll build a real-time stock price monitor using <a href="https://www.mojolicious.org/">Mojolicious</a>, a modern web framework for <a href="https://www.perl.org/">Perl</a>. This project demonstrates the power of <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> for real-time communication in web applications. We’ll simulate stock prices for popular companies like <code class="language-plaintext highlighter-rouge">APPL</code>, <code class="language-plaintext highlighter-rouge">GOOGLE</code>, and <code class="language-plaintext highlighter-rouge">AMZN</code>, updating the prices on the web page as they change.</p>
+
+<h2 id="prerequisites">prerequisites</h2>
+
+<ul>
+  <li>Perl installed on your system.</li>
+  <li>Mojolicious installed. You can install it using CPAN:</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cpan Mojolicious
+</code></pre></div></div>
+
+<h1 id="understanding-websockets">understanding WebSockets</h1>
+
+<p><a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> provide a full-duplex communication channel over a single, long-lived connection between a client (e.g., a web browser) and a server. Unlike the traditional request-response model of HTTP, <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> allow the server to push data to the client as soon as it becomes available, enabling real-time updates without the need for continuous polling.</p>
+
+<p>In the context of our real-time stock price monitor, WebSockets are ideal because they allow us to:</p>
+
+<ul>
+  <li><strong>Push updates instantly</strong>: As soon as a stock price changes, the server can immediately send the update to all connected clients.</li>
+  <li><strong>Reduce latency</strong>: Since the connection is persistent, there’s no need to repeatedly open and close connections, minimizing the delay in delivering updates.</li>
+  <li><strong>Optimize resource usage</strong>: By maintaining a single connection, WebSockets reduce the overhead of HTTP requests, making the application more efficient.</li>
+</ul>
+
+<h2 id="how-websockets-work">how WebSockets Work</h2>
+
+<p><img src="/assets/images/2024-09-05-perl-mojolicious-ws-server/websockets.png" alt="websockets" /></p>
+
+<ol>
+  <li><strong>Connection Establishment</strong>: The client sends a WebSocket handshake request to the server. If the server supports <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a>, it responds with a handshake acknowledgment, and a persistent connection is established.</li>
+  <li><strong>Data Exchange</strong>: Both the client and server can send and receive messages over the WebSocket connection. This bi-directional communication allows the server to push updates to the client without waiting for a request.</li>
+  <li><strong>Connection Closure</strong>: The connection remains open until either the client or server closes it. This persistent nature is what makes <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> particularly suitable for real-time applications.</li>
+</ol>
+
+<h1 id="setting-up-the-project">setting up the project</h1>
+
+<p>First, let’s generate the <a href="https://www.mojolicious.org/">Mojolicious</a> application:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mojo generate app StockMonitor
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/script
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/script/stock_monitor
+  [chmod] /Users/tiagomelo/develop/perl/articles/stock_monitor/script/stock_monitor 744
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/lib
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/lib/StockMonitor.pm
+  [exist] /Users/tiagomelo/develop/perl/articles/stock_monitor
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/stock_monitor.yml
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/lib/StockMonitor/Controller
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/lib/StockMonitor/Controller/Example.pm
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/t
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/t/basic.t
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/public
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/public/index.html
+  [mkdir] stock_monitor/public/assets
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/templates/layouts
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/templates/layouts/default.html.ep
+  [mkdir] /Users/tiagomelo/develop/perl/articles/stock_monitor/templates/example
+  [write] /Users/tiagomelo/develop/perl/articles/stock_monitor/templates/example/welcome.html.ep
+</code></pre></div></div>
+
+<p>This command creates a basic directory structure for your <a href="https://www.mojolicious.org/">Mojolicious</a> application.</p>
+
+<p>We’re safe to remove files that we won’t use:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rm -f lib/StockMonitor/Controller/Example.pm 
+rm -rf templates/example/
+</code></pre></div></div>
+
+<h2 id="dir-structure">dir structure</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>StockMonitor/
+├── lib/
+│   └── StockMonitor/
+│       ├── Controller/
+│       │   └── Stock.pm
+│       └── StockMonitor.pm
+├── public/
+├── script/
+│   └── stock_monitor
+├── templates/
+│   └── stock/
+│       └── index.html.ep
+└── t/
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">lib/StockMonitor/StockMonitor.pm</code>: Main application file where we define routes.</li>
+  <li><code class="language-plaintext highlighter-rouge">lib/StockMonitor/Controller/Stock.pm</code>: Controller for stock data and WebSocket communication.</li>
+  <li><code class="language-plaintext highlighter-rouge">templates/stock/index.html.ep</code>: Template for the front end of our application.</li>
+</ul>
+
+<h1 id="main-application-file">main application file</h1>
+
+<p><code class="language-plaintext highlighter-rouge">lib/StockMonitor/StockMonitor.pm</code>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Copyright (c) 2024 Tiago Melo. All rights reserved.
+# Use of this source code is governed by the MIT License that can be found in
+# the LICENSE file.
+
+package StockMonitor;
+use Mojo::Base 'Mojolicious', -signatures;
+
+# This method will run once at server start
+sub startup ($self) {
+
+  # Router
+  my $r = $self-&gt;routes;
+
+  # WebSocket route for real-time updates
+  $r-&gt;websocket('/stock_updates')-&gt;to('stock#updates');
+
+  # Normal route to serve the main page
+  $r-&gt;get('/')-&gt;to('stock#index');
+}
+
+1;
+</code></pre></div></div>
+
+<ul>
+  <li><strong>Inheritance</strong>: Inherits from Mojolicious, providing access to its features.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">startup</code> method</strong>: Runs when the server starts, configuring the application’s routes.</li>
+  <li><strong>Routes</strong>:
+    <ul>
+      <li><strong>WebSocket Route</strong>: <code class="language-plaintext highlighter-rouge">/stock_updates</code> invokes the updates action in the <code class="language-plaintext highlighter-rouge">Stock</code> controller for real-time stock data.</li>
+      <li><strong>HTTP Route</strong>: <code class="language-plaintext highlighter-rouge">/</code> invokes the index action in the <code class="language-plaintext highlighter-rouge">Stock</code> controller to render the main page.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>This setup directs incoming requests to the appropriate controller actions, enabling both real-time and standard HTTP functionality.</p>
+
+<h1 id="the-controller">the controller</h1>
+
+<p>The heart of our application lies in the controller, where we’ll handle the logic for <a href="https://en.wikipedia.org/wiki/WebSocket">WebSocket</a> communication and simulate stock price updates.</p>
+
+<p><code class="language-plaintext highlighter-rouge">lib/StockMonitor/Controller/Stock.pm</code>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Copyright (c) 2024 Tiago Melo. All rights reserved.
+# Use of this source code is governed by the MIT License that can be found in
+# the LICENSE file.
+
+package StockMonitor::Controller::Stock;
+use Mojo::Base 'Mojolicious::Controller';
+use Mojo::IOLoop;
+
+# Action to render the main page
+sub index {
+  my $self = shift;
+  $self-&gt;render(template =&gt; 'stock/index');
+}
+
+# WebSocket action to handle real-time updates
+sub updates {
+  my $self = shift;
+
+  # Get the stock ticker from the query parameter
+  my $ticker = $self-&gt;param('ticker') || 'APPL';
+
+  # Set up a timer to simulate stock price updates
+  my $timer = Mojo::IOLoop-&gt;recurring(2 =&gt; sub {
+    my $price = 100 + rand(50);  # Simulate a random stock price
+    $self-&gt;send({json =&gt; {ticker =&gt; $ticker, price =&gt; sprintf("%.2f", $price)}});
+  });
+
+  # Clean up when WebSocket is closed
+  $self-&gt;on(finish =&gt; sub {
+    Mojo::IOLoop-&gt;remove($timer);
+  });
+}
+
+1;
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">index</code> action: Renders the main page of our application.
+    <ul>
+      <li>as referenced in <code class="language-plaintext highlighter-rouge">lib/StockMonitor/StockMonitor.pm</code>: <code class="language-plaintext highlighter-rouge">$r-&gt;get('/')-&gt;to('stock#index');</code></li>
+    </ul>
+  </li>
+  <li><code class="language-plaintext highlighter-rouge">updates</code> action: Handles <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> connections. It simulates stock prices by sending random price updates every 2 seconds for the selected ticker.
+    <ul>
+      <li>as referenced in <code class="language-plaintext highlighter-rouge">lib/StockMonitor/StockMonitor.pm</code>: <code class="language-plaintext highlighter-rouge">$r-&gt;websocket('/stock_updates')-&gt;to('stock#updates');</code></li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="main-page">main page</h1>
+
+<p>The front-end of our application is an HTML file with JavaScript to handle <a href="https://en.wikipedia.org/wiki/WebSocket">WebSocket</a> communication and update the stock price in real time.</p>
+
+<p><code class="language-plaintext highlighter-rouge">templates/stock/index.html.ep</code>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Real-Time Stock Price Monitor&lt;/title&gt;
+    &lt;script&gt;
+      let socket;
+
+      function connectToTicker() {
+        const ticker = document.getElementById('ticker').value;
+
+        // Close existing socket if open
+        if (socket &amp;&amp; socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+
+        // Create a new WebSocket connection with the selected ticker
+        socket = new WebSocket("&lt;%= url_for('stock_updates')-&gt;to_abs %&gt;?ticker=" + ticker);
+
+        // Handle incoming messages
+        socket.onmessage = function(event) {
+          const data = JSON.parse(event.data);
+          document.getElementById('price').innerText = data.price;
+          document.getElementById('ticker-display').innerText = data.ticker;
+        };
+
+        socket.onopen = function() {
+          console.log('WebSocket connection opened for', ticker);
+        };
+
+        socket.onclose = function() {
+          console.log('WebSocket connection closed');
+        };
+
+        socket.onerror = function(error) {
+          console.error('WebSocket error:', error);
+        };
+      }
+
+      window.onload = function() {
+        connectToTicker();
+      };
+    &lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;Real-Time Stock Price Monitor&lt;/h1&gt;
+    &lt;p&gt;Select a stock ticker:&lt;/p&gt;
+    &lt;select id="ticker" onchange="connectToTicker()"&gt;
+      &lt;option value="APPL"&gt;APPL&lt;/option&gt;
+      &lt;option value="GOOGLE"&gt;GOOGLE&lt;/option&gt;
+      &lt;option value="AMZN"&gt;AMZN&lt;/option&gt;
+      &lt;option value="MSFT"&gt;MSFT&lt;/option&gt;
+    &lt;/select&gt;
+    &lt;p&gt;Current Price for &lt;span id="ticker-display"&gt;APPL&lt;/span&gt;: $&lt;span id="price"&gt;-&lt;/span&gt;&lt;/p&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+
+</code></pre></div></div>
+
+<ul>
+  <li>The HTML page connects to the WebSocket endpoint and displays the stock price.</li>
+  <li>Users can select different stock tickers from the dropdown menu, which updates the <a href="https://en.wikipedia.org/wiki/WebSocket">WebSocket</a> connection to receive updates for the chosen ticker.</li>
+</ul>
+
+<h1 id="running-the-application">running the application</h1>
+
+<p>With the application logic and front-end in place, we can now run our <a href="https://www.mojolicious.org/">Mojolicious</a> application:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ morbo script/stock_monitor 
+Web application available at http://127.0.0.1:3000
+</code></pre></div></div>
+
+<p>Visit <code class="language-plaintext highlighter-rouge">http://localhost:3000</code> in your browser to see the real-time stock price monitor in action. You can select different stock tickers and watch the simulated prices update in real time:</p>
+
+<p><img src="/assets/images/2024-09-05-perl-mojolicious-ws-server/stockMonitor.gif" alt="stock monitor" /></p>
+
+<h1 id="conclusion">conclusion</h1>
+
+<p>This project demonstrates how to build a real-time stock price monitor using <a href="https://www.mojolicious.org/">Mojolicious</a>, leveraging <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> for instant data updates. While this example uses simulated data, the same principles can be applied to build a more complex and realistic application. With <a href="https://www.mojolicious.org/">Mojolicious</a> straightforward syntax and powerful features, creating real-time web applications in <a href="https://www.perl.org/">Perl</a> becomes an enjoyable experience.</p>
+
+<h1 id="download-the-source">download the source</h1>
+
+<p>Here: <a href="https://github.com/tiagomelo/stock_monitor">https://github.com/tiagomelo/stock_monitor</a></p>

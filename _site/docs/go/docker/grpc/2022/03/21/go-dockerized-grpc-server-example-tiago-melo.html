@@ -1,0 +1,595 @@
+<p><img src="/assets/images/2022-03-21-524c455f-acee-4f62-8d6e-c7dd597bf896/2022-03-21-banner.png" alt="Go: a dockerized gRPC server example" /></p>
+
+<p>It’s not new to anyone that <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> has changed the way we ship software. The primary goal of using <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> is containerization, and that is to have a consistent environment for your application and does not depend on the host machine where it runs.</p>
+
+<p>Also, <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> is becoming a popular architectural choice for writing services. You can check this <a href="https://grpc.io/docs/languages/go/quickstart/?trk=article-ssr-frontend-pulse_little-text-block">quick start</a> to get a glance of how to implement a <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service in <a href="http://golang.org?trk=article-ssr-frontend-pulse_little-text-block">Golang</a>.</p>
+
+<p>In this article we’ll see how to write and run a <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service with <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a>. We’ll also cover a lot of cool and useful things, like:</p>
+
+<ul>
+  <li>How to compile <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> files without the burden of installing <a href="https://grpc.io/docs/protoc-installation/?trk=article-ssr-frontend-pulse_little-text-block">protoc</a> locally;</li>
+  <li>How we can easily use <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a> for parameterizing our application;</li>
+  <li>How to write a <a href="https://docs.docker.com/develop/develop-images/multistage-build/?trk=article-ssr-frontend-pulse_little-text-block">multistage build</a> so we end up with a small, optmized <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image;</li>
+  <li>How to easily invoke the <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service without having to manually write a <a href="http://golang.org/?trk=article-ssr-frontend-pulse_little-text-block">Golang</a> client for it.</li>
+</ul>
+
+<p>Let’s go!</p>
+
+<h2 id="the-proposed-application">The proposed application</h2>
+
+<p>We’ll write a <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service that is used to retrieve a number of random poetries. In order to achieve that, we’ll use <a href="https://poetrydb.org/index.html?trk=article-ssr-frontend-pulse_little-text-block">PoetryDB</a>, an awesome free API for internet poets.</p>
+
+<p>We can see a simple <a href="https://en.wikipedia.org/wiki/Sequence_diagram?trk=article-ssr-frontend-pulse_little-text-block">sequence diagram</a> to show how it will work:</p>
+
+<p><img src="/assets/images/2022-03-21-524c455f-acee-4f62-8d6e-c7dd597bf896/1647864546728.png" alt="No alt text provided for this image" /></p>
+
+<h3 id="protobuf">Protobuf</h3>
+
+<p>Here’s our <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> file where we define the service, ‘poetry.proto’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>syntax = "proto3"
+
+package proto;
+option go_package = "bitbucket.org/tiagoharris/docker-grpc-service-tutorial/proto/poetry";
+
+message Poetry {
+    string title = 1;
+    string author = 2;
+    repeated string lines = 3;
+    int32 linecount = 4;
+}
+
+message RandomPoetriesRequest {
+    int32 number_of_poetries = 1;
+}
+
+message PoetryList {
+    repeated Poetry list = 1;
+}
+
+service ProtobufService {
+    rpc RandomPoetries(RandomPoetriesRequest) returns (PoetryList);
+}
+</code></pre></div></div>
+
+<p>Now we need to compile it in order to have:</p>
+
+<ul>
+  <li>Code for populating, serializing, and retrieving ’RandomPoetriesRequest’ and ’PoetryList’ message types;</li>
+  <li>Generated client and server code.</li>
+</ul>
+
+<p>We compile it using <a href="https://grpc.io/docs/protoc-installation/?trk=article-ssr-frontend-pulse_little-text-block">protoc</a>. Generally we would need to install it, but a better idea would be to use a <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image that has <a href="https://grpc.io/docs/protoc-installation/?trk=article-ssr-frontend-pulse_little-text-block">protoc</a> installed, pretty much similar to what we do when we want to use <a href="https://dev.mysql.com/?trk=article-ssr-frontend-pulse_little-text-block">MySQL</a> for example; instead of installing it, we could use a <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image for it.</p>
+
+<p>And <a href="https://github.com/namely/docker-protoc?trk=article-ssr-frontend-pulse_little-text-block">docker-protoc</a> is exactly what we need.</p>
+
+<p>Here’s our Makefile target that we use to invoke it so we compile the <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+.PHONY: proto
+## proto: compiles .proto files
+proto:
+    @ docker run -v $(PWD):/defs namely/protoc-all -f proto/poetry.proto -l
+go -o . --go-source-relative
+
+</code></pre></div></div>
+
+<p>The ‘–go-source-relative’ option is to keep the generated ‘poetry.pb.go’ file at the same folder of our <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> file ‘poetry.proto’.</p>
+
+<p>When you call it for the first time, it will download ‘namely/protoc-all:latest’ <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image and then will compile our <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+ $ make proto
+Unable to find image 'namely/protoc-all:latest' locally
+latest: Pulling from namely/protoc-all
+72a69066d2fe: Pull complete
+92b40fad93be: Pull complete
+6c681a0a5896: Pull complete
+ebc1d0ae2fce: Pull complete
+8419d9b6e1d6: Pull complete
+bea3673d63cb: Pull complete
+c4795970891a: Pull complete
+a07bfba13570: Pull complete
+390910a84268: Pull complete
+3b0c06e97c77: Pull complete
+02fad91bea96: Pull complete
+784aa2673488: Pull complete
+c5446e8648ec: Pull complete
+f3170de720de: Pull complete
+dbd0d73172b5: Pull complete
+3516e04721f7: Pull complete
+b91f69a87fb4: Pull complete
+37490bcef5e6: Pull complete
+fd5de9fd6a61: Pull complete
+35f2a04b2c22: Pull complete
+075200f557a8: Pull complete
+017c387ae8e9: Pull complete
+Digest: sha256:5406210e1dc68ffe4f36fa1ee98214bb50614d3a44428bf33ffca427079dd3d2
+Status: Downloaded newer image for namely/protoc-all:latest
+
+</code></pre></div></div>
+
+<h3 id="reading-environment-variables">Reading environment variables</h3>
+
+<p>Before implementing our <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service, let’s make an engineering decision about parameterizing the application. A good idea would be to parameterize the base <a href="https://en.wikipedia.org/wiki/URL?trk=article-ssr-frontend-pulse_little-text-block">URL</a> for <a href="https://poetrydb.org/index.html?trk=article-ssr-frontend-pulse_little-text-block">PoetryDB</a>, as well as how many seconds we want to wait until an HTTP timeout occur. So how can we achieve that in a safe, clean way?</p>
+
+<p>Using <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a> is a common technique, right? A good solution would be:</p>
+
+<ul>
+  <li>Defining the variables in some sort of file;</li>
+  <li>Reading this file and exporting those values as <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a>;</li>
+  <li>Get those <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a> into a <a href="https://go.dev/tour/moretypes/2?trk=article-ssr-frontend-pulse_little-text-block">struct</a> so we can easily use them.</li>
+</ul>
+
+<p>Godotenv</p>
+
+<p><a href="https://github.com/joho/godotenv?trk=article-ssr-frontend-pulse_little-text-block">Godotenv</a>is a <a href="http://golang.org/?trk=article-ssr-frontend-pulse_little-text-block">Golang</a> package that solves the two bullet points defined above. We define our variables in an ‘.env’ file and then we invoke it to export all those values as <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a>.</p>
+
+<p>Here’s our ‘config.env’ file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+POETRYDB_BASE_URL=https://poetrydb.org
+POETRYDB_HTTP_TIMEOUT=10
+
+</code></pre></div></div>
+
+<p>Envconfig</p>
+
+<p><a href="https://github.com/kelseyhightower/envconfig?trk=article-ssr-frontend-pulse_little-text-block">Envconfig</a> is a <a href="http://golang.org/?trk=article-ssr-frontend-pulse_little-text-block">Golang</a> package that solves the last bullet point: it encapsulates <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a> that are correctly exported into a <a href="https://go.dev/tour/moretypes/2?trk=article-ssr-frontend-pulse_little-text-block">struct</a>.</p>
+
+<p>Here’s ‘configreader/config_reader.go’, which we use to get a configuration <a href="https://go.dev/tour/moretypes/2?trk=article-ssr-frontend-pulse_little-text-block">struct</a> fulfilled with <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+// Copyright (c) 2022 Tiago Melo. All rights reserved.
+// Use of this source code is governed by the MIT License that can be found in
+// the LICENSE file.
+
+package configreader
+
+import (
+    "github.com/joho/godotenv"
+    "github.com/kelseyhightower/envconfig"
+    "github.com/pkg/errors"
+)
+
+// These global variables makes it easy
+// to mock these dependencies
+// in unit tests.
+var (
+    godotenvLoad     = godotenv.Load
+    envconfigProcess = envconfig.Process
+)
+
+// GoDotEnv is an interface that defines
+// the functions we use from godotenv package.
+// It enables mocking this dependency in unit testing.
+type GoDotEnv interface {
+    Load(filenames ...string) (err error)
+}
+
+// EnvConfig is an interface that defines
+// the functions we use from envconfig package.
+// It enables mocking this dependency in unit testing.
+type EnvConfig interface {
+    Process(prefix string, spec interface{}) error
+}
+
+// Config holds configuration data.
+type Config struct {
+    PoetrydbBaseUrl     string `envconfig:"POETRYDB_BASE_URL" required:"true"`
+    PoetrydbHttpTimeout int    `envconfig:"POETRYDB_HTTP_TIMEOUT" required:"true"`
+}
+
+// ReadEnv reads envionment variables into Config struct.
+func ReadEnv() (*Config, error) {
+    err := godotenvLoad("configreader/config.env")
+    if err != nil {
+        return nil, errors.Wrap(err, "reading .env file")
+    }
+    var config Config
+    err = envconfigProcess("", &amp;config)
+    if err != nil {
+        return nil, errors.Wrap(err, "processing env vars")
+    }
+    return &amp;config, nil
+}
+
+
+</code></pre></div></div>
+
+<h3 id="grpc-service-implementation">gRPC service implementation</h3>
+
+<p>Now that we compiled our <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> file ‘poetry.proto’, we’ll write a <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> server that implements the service defined in ‘poetry.pb.go’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+// Copyright (c) 2022 Tiago Melo. All rights reserved.
+// Use of this source code is governed by the MIT License that can be found in
+// the LICENSE file.
+
+package server
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "net"
+
+    "bitbucket.org/tiagoharris/docker-grpc-service-tutorial/configreader"
+    "bitbucket.org/tiagoharris/docker-grpc-service-tutorial/poetrydb"
+    poetry "bitbucket.org/tiagoharris/docker-grpc-service-tutorial/proto"
+    "github.com/pkg/errors"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/reflection"
+    "google.golang.org/protobuf/encoding/protojson"
+)
+
+// These global variables makes it easy
+// to mock these dependencies
+// in unit tests.
+var (
+    netListen           = net.Listen
+    configreaderReadEnv = configreader.ReadEnv
+    jsonMarshal         = json.Marshal
+    protojsonUnmarshal  = protojson.Unmarshal
+)
+
+// Server defines the available operations for gRPC server.
+type Server interface {
+    // Serve is called for serving requests.
+    Serve() error
+    // GracefulStop is called for stopping the server.
+    GracefulStop()
+    // RandomPoetries returns a random list of poetries.
+    RandomPoetries(ctx context.Context, in *poetry.RandomPoetriesRequest) (*poetry.PoetryList, error)
+}
+
+// server implements Server.
+type server struct {
+    listener   net.Listener
+    grpcServer *grpc.Server
+    poetryDb   poetrydb.PoetryDb
+}
+
+func (s *server) Serve() error {
+    return s.grpcServer.Serve(s.listener)
+}
+
+func (s *server) GracefulStop() {
+    s.grpcServer.GracefulStop()
+}
+
+// NewServer creates a new gRPC server.
+func NewServer(port int) (Server, error) {
+    server := new(server)
+    listener, err := netListen("tcp", fmt.Sprintf(":%d", port))
+    if err != nil {
+        return server, errors.Wrap(err, "tcp listening")
+    }
+    server.listener = listener
+    config, err := configreaderReadEnv()
+    if err != nil {
+        return server, errors.Wrap(err, "reading env vars")
+    }
+    server.poetryDb = poetrydb.NewPoetryDb(config.PoetrydbBaseUrl, config.PoetrydbHttpTimeout)
+    server.grpcServer = grpc.NewServer()
+    poetry.RegisterProtobufServiceServer(server.grpcServer, server)
+    reflection.Register(server.grpcServer)
+    return server, nil
+}
+
+func (s *server) RandomPoetries(ctx context.Context, in *poetry.RandomPoetriesRequest) (*poetry.PoetryList, error) {
+    pbPoetryList := new(poetry.PoetryList)
+    poetryList, err := s.poetryDb.Random(int(in.NumberOfPoetries))
+    if err != nil {
+        return pbPoetryList, errors.Wrap(err, "requesting random poetry")
+    }
+    json, err := jsonMarshal(poetryList)
+    if err != nil {
+        return pbPoetryList, errors.Wrap(err, "marshalling json")
+    }
+    err = protojsonUnmarshal(json, pbPoetryList)
+    if err != nil {
+        return pbPoetryList, errors.Wrap(err, "unmarshalling proto")
+    }
+    return pbPoetryList, nil
+}
+
+
+</code></pre></div></div>
+
+<h3 id="running-it">Running it</h3>
+
+<p>Here’s the related targets in <a href="https://en.wikipedia.org/wiki/Make_(software)?trk=article-ssr-frontend-pulse_little-text-block">Makefile</a> to run the server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+.PHONY: build
+## build: builds server's binary
+build:
+    @ go build -a -installsuffix cgo -o main .
+
+.PHONY: run
+## run: runs the server
+run: build
+    @ ./main
+
+</code></pre></div></div>
+
+<p>So let’s run the server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+$ make run
+GRPC SERVER : 2022/03/21 10:07:14.846821 main.go:19: main: Initializing GRPC server
+GRPC SERVER : 2022/03/21 10:07:14.847286 main.go:32: main: GRPC server listening on port 4040
+
+
+</code></pre></div></div>
+
+<h3 id="invoking-the-grpc-service">Invoking the gRPC service</h3>
+
+<p>Now the cool part: what if we wanted a nice, clean tool like <a href="https://www.postman.com/?trk=article-ssr-frontend-pulse_little-text-block">Postman</a> (used to test <a href="https://en.wikipedia.org/wiki/Representational_state_transfer?trk=article-ssr-frontend-pulse_little-text-block">REST</a> APIs) to makes it easy to call <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> services?</p>
+
+<p><a href="https://github.com/bloomrpc/bloomrpc?trk=article-ssr-frontend-pulse_little-text-block">Bloomrpc</a> is here to help. You just browse your <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> files and you’ll be ready to invoke it:</p>
+
+<p><img src="/assets/images/2022-03-21-524c455f-acee-4f62-8d6e-c7dd597bf896/1647868276536.png" alt="No alt text provided for this image" /></p>
+
+<p>And here you go. We’ve asked one random poetry, and now we can appreciate it.</p>
+
+<h3 id="time-to-dockerize-it">Time to Dockerize it!</h3>
+
+<p>Now that our app is working, let’s bake a <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image for it.</p>
+
+<p>Here’s our <a href="https://docs.docker.com/engine/reference/builder/?trk=article-ssr-frontend-pulse_little-text-block">Dockerfile</a>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+FROM golang:alpine
+
+# Install git and ca-certificates (needed to be able to call HTTPS)
+RUN apk --update add ca-certificates git
+
+# Move to working directory /app
+WORKDIR /app
+
+# Copy the code into the container
+COPY . .
+
+# Download dependencies using go mod
+RUN go mod download
+
+# Build the application's binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
+
+# Command to run the application when starting the container
+CMD ["/app/main"]
+
+
+</code></pre></div></div>
+
+<p>Notice:</p>
+
+<ul>
+  <li>we’re installing git because <a href="http://golang.org?trk=article-ssr-frontend-pulse_little-text-block">Golang</a> tooling uses it, otherwise we would get an error “go: missing Git command. See https://golang.org/s/gogetcmd”;</li>
+  <li>we’re installing ‘ca-certificates’ because <a href="https://poetrydb.org/index.html?trk=article-ssr-frontend-pulse_little-text-block">PoetryDB</a> uses <a href="https://en.wikipedia.org/wiki/HTTPS?trk=article-ssr-frontend-pulse_little-text-block">HTTPS</a>, otherwise we would get an error “certificate signed by unknown authority”.</li>
+</ul>
+
+<p>Building the image</p>
+
+<p>Now let’s build it. Here’s the <a href="https://en.wikipedia.org/wiki/Make_(software)?trk=article-ssr-frontend-pulse_little-text-block">Makefile</a> target:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+.PHONY: build-docker-image
+## build-docker-image: builds the docker image
+build-docker-image:
+    @ docker build . -t docker-grpc-service-tutorial
+
+</code></pre></div></div>
+
+<p>Invoking it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+$ make build-docker-image
+Sending build context to Docker daemon  13.71MB
+Step 1/7 : FROM golang:alpine
+ ---&gt; 0e3b02146c47
+Step 2/7 : RUN apk --update add ca-certificates git
+ ---&gt; Using cache
+ ---&gt; c326d9aa8cfc
+Step 3/7 : WORKDIR /app
+ ---&gt; Using cache
+ ---&gt; 6c485ff6b69d
+Step 4/7 : COPY . .
+ ---&gt; 9af131a39537
+Step 5/7 : RUN go mod download
+ ---&gt; Running in a644255b6578
+Removing intermediate container a644255b6578
+ ---&gt; 3b43ba797d11
+Step 6/7 : RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
+ ---&gt; Running in 01b6ce6172a9
+Removing intermediate container 01b6ce6172a9
+ ---&gt; b1eaebffb306
+Step 7/7 : CMD ["/app/main"]
+ ---&gt; Running in e0ed88e2a687
+Removing intermediate container e0ed88e2a687
+ ---&gt; edb7869f01a6
+Successfully built edb7869f01a6
+Successfully tagged docker-grpc-service-tutorial:latest
+
+Use 'docker scan' to run Snyk tests against images to find vulnerabilities and learn how to fix them
+
+</code></pre></div></div>
+
+<p>Running it as a Docker container</p>
+
+<p>Here’s the <a href="https://en.wikipedia.org/wiki/Make_(software)?trk=article-ssr-frontend-pulse_little-text-block">Makefile</a> target:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+.PHONY: build-docker-image
+## build-docker-image: builds the docker image
+build-docker-image:
+    @ docker build . -t docker-grpc-service-tutorial
+
+.PHONY: run-docker
+## run-docker: runs the server as a Docker container
+run-docker: build-docker-image
+    @ docker run -p 4040:4040 docker-grpc-service-tutorial
+</code></pre></div></div>
+
+<p>Invoking it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+ $ make run-docker
+Sending build context to Docker daemon  13.71MB
+Step 1/7 : FROM golang:alpine
+ ---&gt; 0e3b02146c47
+Step 2/7 : RUN apk --update add ca-certificates git
+ ---&gt; Using cache
+ ---&gt; c326d9aa8cfc
+Step 3/7 : WORKDIR /app
+ ---&gt; Using cache
+ ---&gt; 6c485ff6b69d
+Step 4/7 : COPY . .
+ ---&gt; 95f88bbbc63e
+Step 5/7 : RUN go mod download
+ ---&gt; Running in 227656a7a691
+Removing intermediate container 227656a7a691
+ ---&gt; b6765354b254
+Step 6/7 : RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
+ ---&gt; Running in a8e881248c52
+Removing intermediate container a8e881248c52
+ ---&gt; a05de0412553
+Step 7/7 : CMD ["/app/main"]
+ ---&gt; Running in e0009bc99088
+Removing intermediate container e0009bc99088
+ ---&gt; 351069eab03d
+Successfully built 351069eab03d
+Successfully tagged docker-grpc-service-tutorial:latest
+
+Use 'docker scan' to run Snyk tests against images to find vulnerabilities and learn how to fix them
+GRPC SERVER : 2022/03/21 13:30:18.404250 main.go:19: main: Initializing GRPC server
+GRPC SERVER : 2022/03/21 13:30:18.404646 main.go:32: main: GRPC server listening on port 4040
+
+</code></pre></div></div>
+
+<p>And then you can invoke the service via <a href="https://github.com/bloomrpc/bloomrpc?trk=article-ssr-frontend-pulse_little-text-block">Bloomrpc</a> like we did before.</p>
+
+<p>Multistage build</p>
+
+<p>One of <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a>’s best practice is keeping the image size small, by having only the binary file then we make our image even smaller from the previous one. To achieve this we will use a technique called <a href="https://docs.docker.com/develop/develop-images/multistage-build/?trk=article-ssr-frontend-pulse_little-text-block">multistage build</a> which means we will build our image with multiple steps.</p>
+
+<p>Here’s our <a href="https://docs.docker.com/engine/reference/builder/?trk=article-ssr-frontend-pulse_little-text-block">Dockerfile</a>.multistage:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+FROM golang:alpine AS builder
+
+# Install git and ca-certificates (needed to be able to call HTTPS)
+RUN apk --update add ca-certificates git
+
+# Move to working directory /app
+WORKDIR /app
+
+# Copy the code into the container
+COPY . .
+
+# Download dependencies using go mod
+RUN go mod download
+
+# Build the application's binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
+
+# Build a smaller image that will only contain the application's binary
+FROM scratch
+
+# Move to working directory /app
+WORKDIR /app
+
+# Copy certificates
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Copy application's binary
+COPY --from=builder /app .
+
+# Command to run the application when starting the container
+CMD ["./main"]
+
+
+</code></pre></div></div>
+
+<p>Here are the <a href="https://en.wikipedia.org/wiki/Make_(software)?trk=article-ssr-frontend-pulse_little-text-block">Makefile</a> targets:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+.PHONY: build-docker-image-multistage
+## build-docker-image-multistage: builds a smaller docker image
+build-docker-image-multistage:
+    @ docker build -f Dockerfile.multistage  . -t docker-grpc-service-tutorial
+
+.PHONY: run-docker-multistage
+## run-docker-multistage: runs the server as a Docker container, using the smaller image
+run-docker-multistage: build-docker-image-multistage
+    @ docker run -p 4040:4040 docker-grpc-service-tutorial
+
+</code></pre></div></div>
+
+<p>Notice that we can name <a href="https://docs.docker.com/engine/reference/builder/?trk=article-ssr-frontend-pulse_little-text-block">Dockerfile</a> whatever we want it, as long as we speficy if via ‘-f’ flag.</p>
+
+<p>Invoking it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+$ make run-docker-multistage
+Sending build context to Docker daemon  13.71MB
+Step 1/11 : FROM golang:alpine AS builder
+ ---&gt; 0e3b02146c47
+Step 2/11 : RUN apk --update add ca-certificates git
+ ---&gt; Using cache
+ ---&gt; c326d9aa8cfc
+Step 3/11 : WORKDIR /app
+ ---&gt; Using cache
+ ---&gt; 6c485ff6b69d
+Step 4/11 : COPY . .
+ ---&gt; 8be509098958
+Step 5/11 : RUN go mod download
+ ---&gt; Running in 776490901c8e
+Removing intermediate container 776490901c8e
+ ---&gt; ec0d94130a65
+Step 6/11 : RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
+ ---&gt; Running in fa2e87f052ad
+Removing intermediate container fa2e87f052ad
+ ---&gt; 57680526aaa1
+Step 7/11 : FROM scratch
+ ---&gt;
+Step 8/11 : WORKDIR /app
+ ---&gt; Running in 0cc6905bb002
+Removing intermediate container 0cc6905bb002
+ ---&gt; e41a9cb16982
+Step 9/11 : COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ ---&gt; 8429312feec5
+Step 10/11 : COPY --from=builder /app .
+ ---&gt; 3d1c20349d38
+Step 11/11 : CMD ["./main"]
+ ---&gt; Running in a4a88a400a96
+Removing intermediate container a4a88a400a96
+ ---&gt; 0d27b2b85769
+Successfully built 0d27b2b85769
+Successfully tagged docker-grpc-service-tutorial:latest
+
+Use 'docker scan' to run Snyk tests against images to find vulnerabilities and learn how to fix them
+GRPC SERVER : 2022/03/21 13:37:50.456686 main.go:19: main: Initializing GRPC server
+GRPC SERVER : 2022/03/21 13:37:50.457085 main.go:32: main: GRPC server listening on port 4040
+
+
+</code></pre></div></div>
+
+<p>And then you can invoke the service via <a href="https://github.com/bloomrpc/bloomrpc?trk=article-ssr-frontend-pulse_little-text-block">Bloomrpc</a> like we did before.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>In this article we’ve covered a lot of nice things when building a <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service in <a href="http://golang.org?trk=article-ssr-frontend-pulse_little-text-block">Golang</a> from scratch:</p>
+
+<ul>
+  <li>How to read <a href="https://en.wikipedia.org/wiki/Environment_variable?trk=article-ssr-frontend-pulse_little-text-block">environment variables</a> into a <a href="https://go.dev/tour/moretypes/2?trk=article-ssr-frontend-pulse_little-text-block">struct</a> so we can easily use them;</li>
+  <li>How to delegate to an external <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image to compile our <a href="https://developers.google.com/protocol-buffers/docs/proto3?trk=article-ssr-frontend-pulse_little-text-block">.proto</a> files;</li>
+  <li>How to easily invoke <a href="https://grpc.io/?trk=article-ssr-frontend-pulse_little-text-block">gRPC</a> service via <a href="https://github.com/bloomrpc/bloomrpc?trk=article-ssr-frontend-pulse_little-text-block">Bloomrpc</a>;</li>
+  <li>How to create a <a href="https://www.docker.com/?trk=article-ssr-frontend-pulse_little-text-block">Docker</a> image using <a href="https://docs.docker.com/develop/develop-images/multistage-build/?trk=article-ssr-frontend-pulse_little-text-block">multistage build</a>.</li>
+</ul>
+
+<h2 id="download-the-source">Download the source</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/docker-grpc-service-tutorial/src/master/?trk=article-ssr-frontend-pulse_little-text-block">https://bitbucket.org/tiagoharris/docker-grpc-service-tutorial/src/master/</a></p>

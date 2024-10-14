@@ -1,0 +1,391 @@
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/2019-03-18-banner.png" alt="Java: centralized logging with Spring Boot, Elasticsearch, Logstash and Kibana" /></p>
+
+<p>Logging is a crucial aspect of an application. And when we’re dealing with a distributed environment, like <a href="https://en.wikipedia.org/wiki/Microservices">microservice architecture</a> or having multiple instances running with the help of a <a href="https://en.wikipedia.org/wiki/Load_balancing_(computing)">load balancer</a>, centralized logging becomes a necessity.</p>
+
+<p>In this article, we’ll see how to enable centralized logging in a typical <a href="https://spring.io/projects/spring-boot">Spring Boot</a> with the <a href="https://www.elastic.co/elk-stack">ELK stack</a>, which is comprised of <a href="https://www.elastic.co/">Elasticsearch</a>, <a href="https://www.elastic.co/products/logstash">Logstash</a> and <a href="https://www.elastic.co/products/kibana">Kibana</a>.</p>
+
+<h2 id="meet-the-elk-stack">Meet the ELK stack</h2>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552867928885.png" alt="No alt text provided for this image" /></p>
+
+<p>In a nutshell, this is how centralized logging works:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552857764803.png" alt="No alt text provided for this image" /></p>
+
+<p>The application will store logs into a log file. <a href="https://www.elastic.co/products/logstash">Logstash</a> will read and parse the log file and ship log entries to an <a href="https://www.elastic.co/">Elasticsearch</a> instance. Finally, we will use <a href="https://www.elastic.co/products/kibana">Kibana</a> ( <a href="https://www.elastic.co/">Elasticsearch</a> web frontend) to search and analyze the logs.</p>
+
+<p>We’ll use a <a href="https://www.linkedin.com/pulse/spring-boot-example-crud-restful-api-global-exception-tiago-melo">CRUD RESTful API</a> from a previous post as the application.</p>
+
+<p>To achieve this, we need to put several pieces together. Let’s begin.</p>
+
+<h3 id="install-elasticsearch">Install Elasticsearch</h3>
+
+<p>Just follow the official instructions: <a href="https://www.elastic.co/downloads/elasticsearch">https://www.elastic.co/downloads/elasticsearch</a></p>
+
+<p>After that, let’s check if it’s running:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -XGET http://localhost:9200
+
+</code></pre></div></div>
+
+<p>You should see an output similar to this:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552858869172.png" alt="No alt text provided for this image" /></p>
+
+<h3 id="install-logstash">Install Logstash</h3>
+
+<p>Just follow the official instructions: <a href="https://www.elastic.co/downloads/logstash">https://www.elastic.co/downloads/logstash</a></p>
+
+<h3 id="install-kibana">Install Kibana</h3>
+
+<p>Finally, the last piece. Just follow the official instructions: <a href="https://www.elastic.co/products/kibana">https://www.elastic.co/products/kibana</a></p>
+
+<p>Point your browser to <a href="http://localhost:5601/">http://localhost:5601</a> (if Kibana page shows up, we’re good — we’ll configure it later).</p>
+
+<h3 id="configure-spring-boot">Configure Spring Boot</h3>
+
+<p>To have <a href="https://www.elastic.co/products/logstash">Logstash</a> to ship logs to <a href="https://www.elastic.co/">Elasticsearch</a>, we need to configure our application to store logs into a file. All we need to do is to configure the log file name in ‘ <em>src/main/resources/application.yml</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>logging:
+  file: application.log
+
+</code></pre></div></div>
+
+<p>And the log file will be automatically rotated on a daily basis.</p>
+
+<h3 id="configure-logstash-to-understand-spring-boots-log-fileformat">Configure Logstash to Understand Spring Boot’s Log File Format</h3>
+
+<p>Now comes the tricky part. We need to create <a href="https://www.elastic.co/products/logstash">Logstash</a> config file.</p>
+
+<p>Typical <a href="https://www.elastic.co/products/logstash">Logstash</a> config file consists of three main sections: <em>input</em>, <em>filter</em> and <em>output</em>:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552867983343.png" alt="No alt text provided for this image" /></p>
+
+<p>Each section contains plugins that do relevant part of the processing (such as file input plugin that reads log events from a file or <a href="https://www.elastic.co/">Elasticsearch</a> output plugin which sends log events to <a href="https://www.elastic.co/">Elasticsearch</a>).</p>
+
+<p>We’ll create a file called <em>‘logstash.conf’</em> that will be used in <a href="https://www.elastic.co/products/logstash">Logstash</a> initialization that will be showed soon. It will be placed under <em>‘src/main/resources’</em> directory.</p>
+
+<p>Let’s dig in each section.</p>
+
+<p><strong>Input section</strong></p>
+
+<p>It defines from where <a href="https://www.elastic.co/products/logstash">Logstash</a> will read input data.</p>
+
+<p>This is the <em>input</em> section:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>input {
+  file {
+    type =&gt; "java"
+    path =&gt; "/home/tiago/desenv/java/crud-exceptionhandling-example/application.log"
+    codec =&gt; multiline {
+      pattern =&gt; "^%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME}.*"
+      negate =&gt; "true"
+      what =&gt; "previous"
+    }
+  }
+}
+
+</code></pre></div></div>
+
+<p>Explanation:</p>
+
+<p>1) We’re using <em>file</em> plugin</p>
+
+<p>2) <em>type</em> is set to <em>java</em> - it’s just an additional piece of metadata in case you will use multiple types of log files in the future</p>
+
+<p>3) <em>path</em> is the absolute path to the log file. It must be absolute - <a href="https://www.elastic.co/products/logstash">Logstash</a> is picky about this</p>
+
+<p>4) We’re using <em>multiline</em> <em>codec</em>, which means that multiple lines may correspond to a single log event</p>
+
+<p>5) In order to detect lines that should logically be grouped with a previous line we use a detection pattern:</p>
+
+<p>5.1) <em>pattern</em> =&gt; <em>”^%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME}.*“</em>: Each new log event needs to start with date</p>
+
+<p>5.2) <em>negate =&gt; “true”</em>: if it doesn’t start with a date…</p>
+
+<p>5.3) <em>what =&gt; “previous”</em> → …then it should be grouped with a previous line.</p>
+
+<p><em>File</em> input plugin, as configured, will tail the log file (e.g. only read new entries at the end of the file). Therefore, when testing, in order for Logstash to read something you will need to generate new log entries.</p>
+
+<p><strong>Filter section</strong></p>
+
+<p>It contains plugins that perform intermediary processing on a log event. In our case, event will either be a single log line or multiline log event grouped according to the rules described above.</p>
+
+<p>In the filter section we will do:</p>
+
+<ul>
+  <li>Tag a log event if it contains a stacktrace. This will be useful when searching for exceptions later on</li>
+  <li>Parse out (or <em>grok</em>, in <a href="https://www.elastic.co/products/logstash">Logstash</a> terminology) timestamp, log level, pid, thread, class name (logger actually) and log message</li>
+  <li>Specified timestamp field and format - <a href="https://www.elastic.co/products/kibana">Kibana</a> will use that later for time-based searches</li>
+</ul>
+
+<p>This is the <em>filter</em> section:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>filter {
+  #If log line contains tab character followed by 'at' then we will tag that entry as stacktraceif [message] =~ "\tat" {
+    grok {
+      match =&gt; ["message", "^(\tat)"]
+      add_tag =&gt; ["stacktrace"]
+    }
+  }
+
+  #Grokking Spring Boot's default log format
+  grok {
+    match =&gt; [ "message",
+               "(?&lt;timestamp&gt;%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME})  %{LOGLEVEL:level} %{NUMBER:pid} --- \[(?&lt;thread&gt;[A-Za-z0-9-]+)\] [A-Za-z0-9.]*\.(?&lt;class&gt;[A-Za-z0-9#_]+)\s*:\s+(?&lt;logmessage&gt;.*)",
+               "message",
+               "(?&lt;timestamp&gt;%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME})  %{LOGLEVEL:level} %{NUMBER:pid} --- .+? :\s+(?&lt;logmessage&gt;.*)"
+             ]
+  }
+
+  #Parsing out timestamps which are in timestamp field thanks to previous grok section
+  date {
+    match =&gt; [ "timestamp" , "yyyy-MM-dd HH:mm:ss.SSS" ]
+  }
+}
+
+</code></pre></div></div>
+
+<p>Explanation:</p>
+
+<p>1) <em>if [message] =~ “\tat”</em>: if message contains <em>tab</em> character followed by <em>at</em> then…</p>
+
+<p>2) … use <em>grok</em> plugin to tag stacktraces:</p>
+
+<ul>
+  <li><em>match =&gt; [“message”, “^(\tat)”]:</em> when <em>message</em> matches beginning of the line followed by <em>tab</em> followed by <em>at</em> then…</li>
+  <li><em>add_tag =&gt; [“stacktrace”]</em>: … tag the event with stacktrace tag</li>
+</ul>
+
+<p>3) Use <em>grok</em> plugin for regular <a href="https://spring.io/projects/spring-boot">Spring Boot</a> log message parsing:</p>
+
+<ul>
+  <li>First pattern extracts timestamp, level, pid, thread, class name (this is actually logger name) and the log message.</li>
+  <li>Unfortunately, some log messages don’t have logger name that resembles a class name (for example, Tomcat logs) hence the second pattern that will skip the logger/class field and parse out timestamp, level, pid, thread and the log message.</li>
+</ul>
+
+<p>4) Use <em>date</em> plugin to parse and set the event date:</p>
+
+<ul>
+  <li><em>match =&gt; [ “timestamp” , “yyyy-MM-dd HH:mm:ss.SSS” ]</em>: timestamp field (grokked earlier) contains the timestamp in the specified format</li>
+</ul>
+
+<p><strong>Output section</strong></p>
+
+<p>It contains output plugins that send event data to a particular destination. Outputs are the final stage in the event pipeline. We will be sending our log events to stdout (console output, for debugging) and to <a href="https://www.elastic.co/">Elasticsearch</a>.</p>
+
+<p>This is the <em>output</em> section:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>output {
+  # Print each event to stdout, useful for debugging. Should be commented out in production.# Enabling 'rubydebug' codec on the stdout output will make logstash# pretty-print the entire event as something similar to a JSON representation.
+  stdout {
+    codec =&gt; rubydebug
+  }
+
+  # Sending properly parsed log events to elasticsearch
+  elasticsearch {
+    hosts=&gt;["localhost:9200"]
+    index=&gt;"logstash-%{+YYYY.MM.dd}"
+  }
+}
+
+</code></pre></div></div>
+
+<p>Explanation:</p>
+
+<p>1) We are using multiple outputs: <em>stdout</em> and <em>elasticsearch</em>.</p>
+
+<p>2) <em>stdout { … }:</em> stdout plugin prints log events to standard output (console)</p>
+
+<ul>
+  <li><em>codec =&gt; rubydebug:</em> pretty print events using JSON-like format</li>
+</ul>
+
+<p>3) <em>elasticsearch { … }: elasticsearch</em> plugin sends log events to <a href="https://www.elastic.co/">Elasticsearch</a> server.</p>
+
+<ul>
+  <li><em>hosts =&gt; [“localhost:9200”]:</em> hostname where <a href="https://www.elastic.co/">Elasticsearch</a> is located - in our case, localhost</li>
+  <li><em>index=&gt;”logstash-%{+YYYY.MM.dd}”</em>: the <a href="https://www.elastic.co/blog/what-is-an-elasticsearch-index">index</a> in <a href="https://www.elastic.co/">Elasticsearch</a> for which the data will be streamed to. You can name it with your application’s name if you want.</li>
+</ul>
+
+<p><strong>Putting it all together</strong></p>
+
+<p>Finally, the three parts - <em>input</em>, <em>filter</em> and <em>output</em> - need to be copy-pasted together and saved into <em>logstash.conf</em> config file. Once the config file is in place and <a href="https://www.elastic.co/">Elasticsearch</a> is running, we can run <a href="https://www.elastic.co/products/logstash">Logstash</a>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ /path/to/logstash/bin/logstash -f src/main/resources/logstash.conf
+
+</code></pre></div></div>
+
+<p>If everything went well, <a href="https://www.elastic.co/products/logstash">Logstash</a> is now shipping log events to <a href="https://www.elastic.co/">Elasticsearch</a>. It may take a while before presenting an output like this:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552871324805.png" alt="No alt text provided for this image" /></p>
+
+<p>Notice these lines:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[INFO ] 2019-03-17 17:44:18.226 [[main]-pipeline-manager] elasticsearch - New Elasticsearch output {:class=&gt;"LogStash::Outputs::ElasticSearch", :hosts=&gt;["//localhost:9200"]}
+[INFO ] 2019-03-17 17:44:18.249 [Ruby-0-Thread-5: :1] elasticsearch - Using mapping template from {:path=&gt;nil}
+[INFO ] 2019-03-17 17:44:18.271 [Ruby-0-Thread-5: :1] elasticsearch - Attempting to install template {:manage_template=&gt;{"template"=&gt;"logstash-*", "version"=&gt;60001, "settings"=&gt;{"index.refresh_interval"=&gt;"5s"}, "mappings"=&gt;{"_default_"=&gt;{"dynamic_templates"=&gt;[{"message_field"=&gt;{"path_match"=&gt;"message", "match_mapping_type"=&gt;"string", "mapping"=&gt;{"type"=&gt;"text", "norms"=&gt;false}}}, {"string_fields"=&gt;{"match"=&gt;"*", "match_mapping_type"=&gt;"string", "mapping"=&gt;{"type"=&gt;"text", "norms"=&gt;false, "fields"=&gt;{"keyword"=&gt;{"type"=&gt;"keyword", "ignore_above"=&gt;256}}}}}], "properties"=&gt;{"@timestamp"=&gt;{"type"=&gt;"date"}, "@version"=&gt;{"type"=&gt;"keyword"}, "geoip"=&gt;{"dynamic"=&gt;true, "properties"=&gt;{"ip"=&gt;{"type"=&gt;"ip"}, "location"=&gt;{"type"=&gt;"geo_point"}, "latitude"=&gt;{"type"=&gt;"half_float"}, "longitude"=&gt;{"type"=&gt;"half_float"}}}}}}}}
+[INFO ] 2019-03-17 17:44:18.585 [[main]-pipeline-manager] file - No sincedb_path set, generating one based on the "path" setting {:sincedb_path=&gt;"/usr/share/logstash/data/plugins/inputs/file/.sincedb_97bb92ea0ae35e33de7cca814bc912c7", :path=&gt;["/home/tiago/desenv/java/crud-exceptionhandling-example/application.log"]}
+
+</code></pre></div></div>
+
+<p>Seems that an index called ‘ <em>logstash-*‘</em> was created and the log file ‘ <em>/home/tiago/desenv/java/crud-exceptionhandling-example/application.log’</em> was correctly located.</p>
+
+<p>Let’s check if the index was really created at <a href="https://www.elastic.co/">Elasticsearch</a> by this command:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~$ curl -X GET "localhost:9200/_cat/indices?v"
+
+</code></pre></div></div>
+
+<p>And this is the output. It was created as expected:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>health status index               uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   logstash-2019.03.17 ReyKaZpgRq659xiNXWcUiw   5   1         77            0    234.5kb        234.5kb
+green  open   .kibana_1           o-dbTdTZTu-MGR3ECzPteg   1   0          4            0     19.7kb         19.7kb
+
+</code></pre></div></div>
+
+<h3 id="configure-kibana">Configure Kibana</h3>
+
+<p>Let’s open <a href="https://www.elastic.co/products/kibana">Kibana</a> UI at <a href="http://localhost:5601/">http://localhost:5601</a>. Click on <em>‘Management’:</em></p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552872388417.png" alt="No alt text provided for this image" /></p>
+
+<p>Now click on <em>‘Index Patterns’</em> under <em>‘Kibana’</em>:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552872529940.png" alt="No alt text provided for this image" /></p>
+
+<p>And here we put the name of the index that was created in <a href="https://www.elastic.co/">Elasticsearch</a>: ‘ <em>logstash-*‘.</em> Then, hit ‘Next step’:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552872996991.png" alt="No alt text provided for this image" /></p>
+
+<p>Now we choose <em>‘@timestamp’</em> as the field to filter data by time and then hit <em>‘Create index pattern’</em>:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552872937808.png" alt="No alt text provided for this image" /></p>
+
+<h2 id="its-show-time">It’s show time!</h2>
+
+<p>Let’s launch the application and perform some operations in order to generate some data. Then we’ll check them later using the <a href="https://www.elastic.co/products/kibana">Kibana</a> UI.</p>
+
+<p>Fire up the server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn spring-boot:run
+
+</code></pre></div></div>
+
+<p>So, as mentioned earlier, our app is a <a href="https://www.linkedin.com/pulse/spring-boot-example-crud-restful-api-global-exception-tiago-melo">CRUD RESTful API</a> from a previous article.</p>
+
+<p>Let’s call the endpoint that lists all students. In the controller we have:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>private static final Logger LOGGER = LoggerFactory.getLogger(StudentController.class);
+
+/**
+ * Get all students
+ *
+ * @return the list of students
+ */
+@GetMapping("/students")
+public List&lt;StudentDTO&gt; getAllStudents() {
+  List&lt;Student&gt; students = service.findAll();
+
+  LOGGER.info(String.format("getAllStudents() returned %s records", students.size()));
+
+  return students.stream().map(student -&gt; convertToDTO(student)).collect(Collectors.toList());
+}
+
+</code></pre></div></div>
+
+<p>Let’s call it:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552873622767.png" alt="No alt text provided for this image" /></p>
+
+<p>In the server’s log we have:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552875833020.png" alt="No alt text provided for this image" /></p>
+
+<p>And if we take a look at what’s going on with <a href="https://www.elastic.co/products/logstash">Logstash</a>, we see that it was captured:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+          "path" =&gt; "/home/tiago/desenv/java/crud-exceptionhandling-example/application.log",
+          "host" =&gt; "tiagomelo",
+           "pid" =&gt; "22174",
+         "class" =&gt; "StudentController",
+       "message" =&gt; "2019-03-17 23:14:58.197  INFO 22174 --- [http-nio-8080-exec-1] com.tiago.controller.StudentController   : getAllStudents() returned 6 records",
+      "@version" =&gt; "1",
+    "@timestamp" =&gt; 2019-03-18T02:14:58.197Z,
+    "logmessage" =&gt; "getAllStudents() returned 6 records",
+          "type" =&gt; "java",
+         "level" =&gt; "INFO",
+     "timestamp" =&gt; "2019-03-17 23:14:58.197",
+        "thread" =&gt; "http-nio-8080-exec-1"
+}
+
+</code></pre></div></div>
+
+<p>Now let’s perform an action that will log an error. We can do it by trying to delete an inexisting student, for example. This is our exception handler:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionHandlingController.class);
+
+/**
+ * This exception is thrown when a resource is not found
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(ResourceNotFoundException.class)
+public ResponseEntity&lt;ExceptionResponse&gt; resourceNotFound(ResourceNotFoundException ex) {
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Not Found");
+  response.setErrorMessage(ex.getMessage());
+
+  LOGGER.error(String.format("ResourceNotFoundException: %s", ex.getMessage()));
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.NOT_FOUND);
+}
+
+</code></pre></div></div>
+
+<p>Let’s call it:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552874328547.png" alt="No alt text provided for this image" /></p>
+
+<p>In the server’s log we have:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552876092847.png" alt="No alt text provided for this image" /></p>
+
+<p>And if we take a look at what’s going on with Logstash, we see that it was captured:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+          "path" =&gt; "/home/tiago/desenv/java/crud-exceptionhandling-example/application.log",
+          "host" =&gt; "tiagomelo-zoom",
+           "pid" =&gt; "22174",
+         "class" =&gt; "ExceptionHandlerExceptionResolver",
+       "message" =&gt; "2019-03-17 23:20:03.729  WARN 22174 --- [http-nio-8080-exec-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [com.tiago.exception.ResourceNotFoundException: Student not found with id: '323']",
+      "@version" =&gt; "1",
+    "@timestamp" =&gt; 2019-03-18T02:20:03.729Z,
+    "logmessage" =&gt; "Resolved [com.tiago.exception.ResourceNotFoundException: Student not found with id: '323']",
+          "type" =&gt; "java",
+         "level" =&gt; "WARN",
+     "timestamp" =&gt; "2019-03-17 23:20:03.729",
+        "thread" =&gt; "http-nio-8080-exec-3"
+}
+
+</code></pre></div></div>
+
+<p>We’ve performed two actions: listed all students and tried to delete an inexisting one. Now it’s time to visualize them in <a href="https://www.elastic.co/products/kibana">Kibana</a> UI at <a href="http://localhost:5601/">http://localhost:5601</a>.</p>
+
+<p>This is the log of the first operation performed, listing all students:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552877797443.png" alt="No alt text provided for this image" /></p>
+
+<p>And this is the log of the second operation performed, deleting an inexisting student:</p>
+
+<p><img src="/assets/images/2019-03-18-3819cad8-f2f9-4fcf-86cd-f03b481be70c/1552877859190.png" alt="No alt text provided for this image" /></p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Through this simple example, we learned how we can integrate a <a href="https://spring.io/projects/spring-boot">Spring Boot</a> application with <a href="https://www.elastic.co/elk-stack">ELK stack</a> in order to have centralized logging.</p>
+
+<h2 id="download-the-source">Download the source</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/crud-exceptionhandling-example/src/master/">https://bitbucket.org/tiagoharris/crud-exceptionhandling-example/src/master/</a></p>

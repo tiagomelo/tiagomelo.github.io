@@ -1,0 +1,294 @@
+<p><img src="/assets/images/2020-02-03-48f01379-820e-4bf5-8619-81b2f7811477/2020-02-03-banner.png" alt="Go: a simple feature flag solution with Google Cloud Datastore" /></p>
+
+<p>In this article, we’ll see what <a href="https://en.wikipedia.org/wiki/Feature_toggle">feature flag</a> is, why it’s useful and a simple implementation of it using <a href="https://golang.org/">Golang</a> and <a href="https://cloud.google.com/datastore/">Google Cloud Datastore</a>.</p>
+
+<h2 id="what-is-a-feature-flag">What is a feature flag?</h2>
+
+<p>From <a href="https://en.wikipedia.org/wiki/Feature_toggle">Wikipedia</a>:</p>
+
+<blockquote>
+  <p>A <strong>feature toggle</strong> (also <strong>feature switch</strong>, <strong>feature flag</strong>, <strong>feature flipper</strong>, <strong>conditional feature</strong>, etc.) is a technique in <a href="https://en.wikipedia.org/wiki/Software_development">software development</a> that attempts to provide an alternative to maintaining multiple <a href="https://en.wikipedia.org/wiki/Source_code">source-code</a> branches (known as feature branches), such that a feature can be tested even before it is completed and ready for release. Feature toggle is used to hide, enable or disable the feature during run time. For example, during the development process, a developer can enable the feature for testing and disable it for other users.</p>
+</blockquote>
+
+<h2 id="motivation">Motivation</h2>
+
+<p>I was working in a huge <a href="https://en.wikipedia.org/wiki/Representational_state_transfer">RESTful API</a>, written in <a href="https://golang.org/">Golang</a> and running on <a href="https://cloud.google.com/">Google Cloud Platform</a>, and I needed to use the <a href="https://en.wikipedia.org/wiki/Feature_toggle">feature flag</a> technique to be able to test a new integration with an internal system without breaking the existing behavior - and thus not worrying about undesired side effects when deploying it to the production environment.</p>
+
+<p>Although there are <a href="http://featureflags.io/go-feature-flags/">many existing solutions out there</a>, I needed something simpler. I just needed boolean flags. Then I thought of using the <a href="https://console.cloud.google.com/datastore">Google Datastore console</a> as a visual ‘dashboard’ to easily create/delete/enable/disable features for a given system, in the form of <a href="https://cloud.google.com/datastore/docs/concepts/entities">entities</a>.</p>
+
+<p>Every entity <a href="https://cloud.google.com/datastore/docs/concepts/entities#kinds_and_identifiers">kind</a> will represent the collection of <a href="https://en.wikipedia.org/wiki/Feature_toggle">feature flags</a> for a given system, and each entity of that <a href="https://cloud.google.com/datastore/docs/concepts/entities#kinds_and_identifiers">kind</a> is a <a href="https://en.wikipedia.org/wiki/Feature_toggle">feature flag</a>.</p>
+
+<h2 id="the-solution">The solution</h2>
+
+<p>I’ve created <a href="https://github.com/tiagomelo/datastore-feature-flags">a small toolkit</a> that could be used not only for the aforementioned <a href="https://en.wikipedia.org/wiki/Representational_state_transfer">API</a> but for the other <a href="https://golang.org/">Golang</a> systems that we have.</p>
+
+<h3 id="prerequisites">Prerequisites</h3>
+
+<ul>
+  <li><a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects">A Google Cloud Platform project</a> and a <a href="https://cloud.google.com/iam/docs/creating-managing-service-accounts">service account</a> for it</li>
+  <li><a href="https://cloud.google.com/iam/docs/creating-managing-service-account-keys">A service account key (as JSON)</a> for the service account and <a href="https://cloud.google.com/docs/authentication/getting-started?hl=en#setting_the_environment_variable">GOOGLE_APPLICATION_CREDENTIALS</a> environment variable with its path</li>
+  <li><a href="https://cloud.google.com/datastore/docs/quickstart">A Google Cloud Datastore instance</a> in <a href="https://cloud.google.com/datastore/docs/quickstart?hl=en#firestore-or-datastore">Datastore Mode</a></li>
+</ul>
+
+<h3 id="the-code">The code</h3>
+
+<p><em>datastore.go</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// A minimal interface to expose datastore related functions.
+// Author: Tiago Melo (tiagoharris@gmail.com)
+
+package datastore
+
+import (
+	"context"
+)
+
+type Datastore interface {
+	GetFeatureFlagByName(ctx context.Context, name string (*FeatureFlag, error)
+}
+
+</code></pre></div></div>
+
+<p><em>store.go</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Author: Tiago Melo (tiagoharris@gmail.com)
+
+package datastore
+
+import (
+	"context"
+
+	"cloud.google.com/go/datastore"
+	"github.com/pkg/errors"
+)
+
+type Store struct {
+	Client *datastore.Client
+
+	// Kind represents the entity type to be queried
+	Kind string
+}
+
+// NewStore initializes a new datastore client
+func NewStore(ctx context.Context, kind string) (Datastore, error) {
+	dsClient, err := datastore.NewClient(ctx, datastore.DetectProjectID)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to init datastore client")
+	}
+
+	return &amp;Store{
+		Client: dsClient,
+		Kind:   kind,
+	}, nil
+}
+
+</code></pre></div></div>
+
+<p>Interesting note: instead of hardcoding the GCP project name, ‘datastore.DetectProjectID’ detects it by reading the project name that it’s defined on the aforementioned <a href="https://cloud.google.com/iam/docs/creating-managing-service-account-keys">JSON credential file</a>.</p>
+
+<p><em>feature_flag.go</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Author: Tiago Melo (tiagoharris@gmail.com)
+
+package datastore
+
+import (
+	"context"
+
+	"cloud.google.com/go/datastore"
+)
+
+// FeatureFlag is used to store information about a feature flag for a given system
+type FeatureFlag struct {
+	Name     string `datastore:"name" json:"name"`
+	IsActive bool   `datastore:"is_active" json:"is_active"`
+}
+
+// FeatureFlagKey creates a new datastore key for a given entity type and feature flag name
+func FeatureFlagKey(ctx context.Context, kind, name string) *datastore.Key {
+	return datastore.NameKey(kind, name, nil)
+}
+
+// GetFeatureFlagByName queries datastore for a given entity type and feature flag name
+func GetFeatureFlagByName(ctx context.Context, s *Store, name string) (*FeatureFlag, error) {
+	var f FeatureFlag
+	err := s.Client.Get(ctx, FeatureFlagKey(ctx, s.Kind, name), &amp;f)
+
+	return &amp;f, err
+}
+
+// GetFeatureFlagByName returns the feature flag of a given system
+func (s *Store) GetFeatureFlagByName(ctx context.Context, name string) (*FeatureFlag, error) {
+	flag, err := GetFeatureFlagByName(ctx, s, name)
+	return flag, err
+}
+
+</code></pre></div></div>
+
+<h2 id="running-it">Running it</h2>
+
+<p>Suppose the entity <a href="https://cloud.google.com/datastore/docs/concepts/entities#kinds_and_identifiers">kind</a> ‘my-api-feature-flags’. We have a feature named ‘Test flag’ which is active:</p>
+
+<p><img src="/assets/images/2020-02-03-48f01379-820e-4bf5-8619-81b2f7811477/1580523434759.png" alt="No alt text provided for this image" /></p>
+
+<p>So we could read it like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package main
+
+package main
+
+import (
+	"context"
+	"log"
+
+	"github.com/tiagomelo/datastore-feature-flags"
+)
+
+func main() {
+	ctx := context.Background()
+
+	store, err := datastore.NewStore(ctx, "follow-cms-feature-flags")
+	if err != nil {
+		log.Fatal(err, "unable to init database")
+	}
+
+	featureFlag, err := store.GetFeatureFlagByName(ctx, "Test flag")
+	if err != nil {
+		log.Fatal(err, "unable to read feature flag")
+	}
+
+	if featureFlag.IsActive {
+		log.Println(featureFlag.Name)
+	}
+}
+
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2020/02/02 18:25:37 Test flag
+
+</code></pre></div></div>
+
+<p>Of course, you don’t want to hit <a href="https://cloud.google.com/datastore">Datastore</a> every time. In a production app, we might add a <a href="https://en.wikipedia.org/wiki/Cache_(computing)">cache</a> layer, reading from it first, then reading from <a href="https://cloud.google.com/datastore">Datastore</a> in case of a <a href="https://en.wikipedia.org/wiki/CPU_cache#CACHE-MISS">cache miss</a> and then storing it into the <a href="https://en.wikipedia.org/wiki/Cache_(computing)">cache</a>. But that’s a subject for a future article.</p>
+
+<h3 id="unit-testing">Unit testing</h3>
+
+<p>The cool thing about <a href="https://cloud.google.com/">Google Cloud Platform</a> is that it provides some emulators to ease the unit testing. I’ll show how to use the <a href="https://cloud.google.com/datastore/docs/tools/datastore-emulator">Datastore emulator</a>.</p>
+
+<p>The prerequisites are:</p>
+
+<ul>
+  <li>a <a href="http://java.com">Java</a> 8+ JRE must be installed and on your system PATH</li>
+  <li><a href="https://cloud.google.com/datastore/docs/tools/datastore-emulator">Google Cloud SDK Datastore Emulator</a></li>
+</ul>
+
+<p><em>Makefile</em>: the ‘datastore-start’ target will launch the <a href="https://cloud.google.com/datastore/docs/tools/datastore-emulator">emulator</a> at 127.0.0.1:8084.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Starts the datastore emulator for running locally. Called by `make test`.
+datastore-start:
+	@gcloud beta emulators datastore start --no-store-on-disk --host-port=127.0.0.1:8084 --consistency 1.0 --quiet &gt; /dev/null 2&gt;&amp;1 &amp;
+	@echo "Cloud Datastore Emulator started..."
+
+# Looks for a running datastore emulator and stops it.
+datastore-stop:
+	@kill -9 `ps ax | grep 'CloudDatastore.jar' | grep -v grep | awk '{print $1}'` &gt; /dev/null 2&gt;&amp;1 &amp;
+	@echo "Cloud Datastore Emulator stopped"
+
+test: datastore-start
+	@export DATASTORE_EMULATOR_HOST=127.0.0.1:8084; \
+	go test -v ./...
+	@$(MAKE) -s datastore-stop
+
+</code></pre></div></div>
+
+<p><em>test_util.go</em>: it creates a <a href="https://pkg.go.dev/cloud.google.com/go/datastore?tab=doc">datastore</a> instance that connects to the <a href="https://cloud.google.com/datastore/docs/tools/datastore-emulator">emulator</a>.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Author: Tiago Melo (tiagoharris@gmail.com)
+
+package datastore
+
+import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/datastore"
+)
+
+func newTestDB(ctx context.Context, kind string) Datastore {
+	dsClient, err := datastore.NewClient(ctx, datastore.DetectProjectID)
+	if err != nil {
+		panic(fmt.Sprintf("could not create new datastore client: %s", err))
+	}
+
+	return &amp;Store{
+		Client: dsClient,
+		Kind:   kind,
+	}
+}
+
+</code></pre></div></div>
+
+<p><em>feature_flag_test.go</em>: it connects to the <a href="https://cloud.google.com/datastore/docs/tools/datastore-emulator">emulator</a> and first tries to retrieve an entity <a href="https://cloud.google.com/datastore/docs/concepts/entities#kinds_and_identifiers">kind</a> that does not exist. Then, we create it. And, finally, we retrieve it and check its name.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Author: Tiago Melo (tiagoharris@gmail.com)
+
+package datastore
+
+import (
+	"context"
+	"testing"
+
+	"cloud.google.com/go/datastore"
+)
+
+func TestGetFeatureFlagByName(t *testing.T) {
+	ctx := context.Background()
+	testKind := "test-feature-flags"
+
+	store := newTestDB(ctx, testKind).(*Store)
+
+	featureFlagName := "Test Flag"
+	featureFlag, err := store.GetFeatureFlagByName(ctx, featureFlagName)
+	if err == nil {
+		t.Error("expected 'datastore.ErrNoSuchEntity' error")
+	}
+
+	f := FeatureFlag{
+		Name:     featureFlagName,
+		IsActive: true,
+	}
+	_, err = store.Client.Put(ctx, datastore.NameKey(testKind, featureFlagName, nil), &amp;f)
+	if err != nil {
+		t.Errorf("Creating feature flag entry %s", err)
+	}
+	featureFlag, err = store.GetFeatureFlagByName(ctx, featureFlagName)
+	if err != nil {
+		t.Errorf("GetFeatureFlagByName %s", err)
+	}
+	if !featureFlag.IsActive {
+		t.Errorf("Expected feature flag to be active, got %v", featureFlag.IsActive)
+	}
+}
+
+</code></pre></div></div>
+
+<p>Running it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tiago@tiago:~/develop/go/datastore-feature-flags$ make test
+Cloud Datastore Emulator started...
+=== RUN   TestGetFeatureFlagByName
+--- PASS: TestGetFeatureFlagByName (0.43s)
+PASS
+ok  	github.com/tiagomelo/datastore-feature-flags	1.144s
+Cloud Datastore Emulator stopped
+
+</code></pre></div></div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>In this article, we’ve covered a simple <a href="https://en.wikipedia.org/wiki/Feature_toggle">feature flag</a> solution using <a href="https://golang.org/">Golang</a> and <a href="https://cloud.google.com/datastore">Google Cloud Datastore</a>.</p>
+
+<h2 id="repository-link">Repository link</h2>
+
+<p>Here: <a href="https://github.com/tiagomelo/datastore-feature-flags">https://github.com/tiagomelo/datastore-feature-flags</a></p>

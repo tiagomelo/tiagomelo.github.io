@@ -1,0 +1,190 @@
+<p><img src="/assets/images/2019-02-27-40bae51c-7ae4-469c-a5e5-efca9880a881/2019-02-27-banner.jpeg" alt="Bash: how to plot a line graph in Gnuplot 5 from a file with JSON lines" /></p>
+
+<p>Have you ever needed to plot a graph from a data file? Let’s do it.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Sometimes in my career I had to plot graphs whether for application performance studies or to present business-related metrics to stakeholders, for example. And when I needed to do it for the very first time I was introduced to <a href="http://www.gnuplot.info/">Gnuplot</a>.</p>
+
+<p><a href="http://www.gnuplot.info/">Gnuplot</a> is a free, command-driven, interactive, function and data plotting program, providing a relatively simple environment to make simple 2D plots.</p>
+
+<p>In this article we’ll see how to plot a line graph from a file that contains <a href="https://www.json.org/">JSON</a> lines using a <a href="https://www.gnu.org/software/bash/">bash</a> script.</p>
+
+<h2 id="context">Context</h2>
+
+<p>You may encounter two different types of <a href="https://www.json.org/">JSON</a> files in the wild: files with one large <a href="https://www.json.org/">JSON</a> object, and so-called “ <a href="https://www.json.org/">JSON</a> lines” files, which have multiple, separate <a href="https://www.json.org/">JSON</a> objects each on one single line, not wrapped by ’[]’</p>
+
+<p>So, suppose that your company runs a batch program to process offers in a daily basis. After every execution, it writes useful metrics to a log file called ‘metrics.log’ like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{"executionTime":"2019-02-25T09:55:15.347+0000","insertedOffers":202,"updatedOffers":392,"deletedOffers":84}
+{"executionTime":"2019-02-25T10:32:20.347+0000","insertedOffers":154,"updatedOffers":295,"deletedOffers":59}
+{"executionTime":"2019-02-25T12:13:40.347+0000","insertedOffers":352,"updatedOffers":110,"deletedOffers":231}
+{"executionTime":"2019-02-25T13:40:01.347+0000","insertedOffers":95,"updatedOffers":214,"deletedOffers":131}
+{"executionTime":"2019-02-25T15:10:42.347+0000","insertedOffers":189,"updatedOffers":341,"deletedOffers":143}
+{"executionTime":"2019-02-25T16:39:11.347+0000","insertedOffers":302,"updatedOffers":93,"deletedOffers":102}
+{"executionTime":"2019-02-25T18:23:58.347+0000","insertedOffers":132,"updatedOffers":292,"deletedOffers":39}
+
+</code></pre></div></div>
+
+<p>Every line in the log is a <a href="https://www.json.org/">JSON</a> object.</p>
+
+<p>It would be nice to use this data to plot a graph, wouldn’t it?</p>
+
+<p>In order to accomplish this, let’s convert these <a href="https://www.json.org/">JSON</a> lines to a <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a> file. Then we’ll tell <a href="http://www.gnuplot.info/">Gnuplot</a> to plot a graph from this file.</p>
+
+<h2 id="meet-jq">Meet jq</h2>
+
+<p>Among several bash command line tools for converting <a href="https://www.json.org/">JSON</a> to <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a>, <a href="https://stedolan.github.io/jq/">jq</a> is one of the most popular and powerful.</p>
+
+<p>Let’s see how to convert our ‘metrics.log’ to a <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cat metrics.log | jq -r 'to_entries|map(.value)|@csv' | tr -d '"' &gt; generated.csv
+
+</code></pre></div></div>
+
+<p>Here we are reading ‘metrics.log’, getting only the values of each key and invoking ‘@csv’ function. Then we use the <a href="https://en.wikipedia.org/wiki/Tr_(Unix)">tr command</a> to remove double-quotes so <a href="http://www.gnuplot.info/">Gnuplot</a> can read the datetime values correctly. This is the resulting <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-02-25T09:55:15.347+0000,202,392,84
+2019-02-25T10:32:20.347+0000,154,295,59
+2019-02-25T12:13:40.347+0000,352,110,231
+2019-02-25T13:40:01.347+0000,95,214,131
+2019-02-25T15:10:42.347+0000,189,341,143
+2019-02-25T16:39:11.347+0000,302,93,102
+2019-02-25T18:23:58.347+0000,132,292,39
+
+</code></pre></div></div>
+
+<h2 id="the-gnuplot-script">The Gnuplot script</h2>
+
+<p>We’ll invoke <a href="http://www.gnuplot.info/">Gnuplot</a> with this script. I’ve used <a href="https://www.colorhexa.com/">ColorHexa</a> to get the color hexadecimal codes.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>##
+# gnuplot script to generate a graphic.
+#
+# it expects two parameters:
+#
+# csv_file_path - path to the file from which the data will be read
+# graphic_file_name - the graphic file name to be saved
+#
+# Author: Tiago Melo (tiagoharris@gmail.com)
+##
+
+# graphic will be saved as 800x600 png image file
+set terminal png size 800,600
+
+# setting the graphic file name to be saved
+set output graphic_file_name
+
+# allows grid lines to be drawn on the plot
+set grid
+
+# since the input file is a CSV file, we need to tell gnuplot that data fields are separated by comma
+set datafile separator ","
+
+# tells gnuplot that the values in X axis are date/time
+set xdata time
+
+# tells gnuplot the datetime format of the data present in the input file
+# all datetime values are in ISO 8601 format. For example: "2019-02-25T09:55:15.347+0000"
+set timefmt "%Y-%m-%dT%H:%M:%SZ"
+
+# the graphic's main title
+# we're appending the current date to it, in GMT-3 timezone
+set title "Offer Metrics - ".strftime("%Y-%m-%d", time(0)-(3*3600))
+
+# draws a box around the legends that we'll use...
+set key box
+
+# ... and place it in the upper right corner
+set key right
+
+# in the next three lines we are defining the style of the lines, where:
+#
+# lc - linecolor
+# lt - linetype
+# lw - linewidth
+# pt - pointtype
+# pt - pointinterval
+# ps - pointsize
+set style line 1 lc rgb '#4bd648' lt 1 lw 2 pt 7 pi -1 ps 1.5
+set style line 2 lc rgb '#127ef3' lt 1 lw 2 pt 7 pi -1 ps 1.5
+set style line 3 lc rgb '#e5532e' lt 1 lw 2 pt 7 pi -1 ps 1.5
+
+# this is the command to actually generate the graphic file.
+# the sintax is:
+#
+# plot &lt;datafile&gt; using &lt;entry_in_file:entry_in_file&gt; title &lt;desired_title&gt; with &lt;plotting_style&gt; ls &lt;line_style&gt;
+#
+# a line in the datefile has the following format, for example:
+#
+# 2019-02-25T09:55:15.347+0000,202,392,84
+#
+# the entry # 1 is a timestamp
+# the entry # 2 is the number of new offers
+# the entry # 3 is the number of updated offers
+# the entry # 4 is the number of deleted offers
+#
+plot \
+csv_file_path using 1:2 title 'New offers' with linespoints ls 1, \
+csv_file_path using 1:3 title 'Updated offers' with linespoints ls 2, \
+csv_file_path using 1:4 title 'Deleted offers' with linespoints ls 3
+</code></pre></div></div>
+
+<h2 id="the-bash-script">The bash script</h2>
+
+<p>Now let’s put it all together in a bash script that will generate the <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a> file from our ‘metrics.log’ file and invoke <a href="http://www.gnuplot.info/">Gnuplot</a> to plot the line graph using the generated file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#!/usr/bin/env bash
+
+##
+# bash script that parses a JSON file to CSV (using jq) and plots a graphic (using gnuplot).
+#
+# Author: Tiago Melo (tiagoharris@gmail.com)
+##
+
+LOG_FILE="./metrics.log"
+CSV_FILE="./generated.csv"
+GNUPLOT_SCRIPT_FILE="./gnuplot_script.gp"
+GNUPLOT_GRAPHIC_FILE="./offer_metrics.png"
+
+function generateCsvFile {
+  cat $LOG_FILE | jq -r 'to_entries|map(.value)|@csv' | tr -d '"' &gt; $CSV_FILE
+}
+
+function generateGraphic {
+  gnuplot -e "csv_file_path='$CSV_FILE'" -e "graphic_file_name='$GNUPLOT_GRAPHIC_FILE'" $GNUPLOT_SCRIPT_FILE
+}
+
+generateCsvFile
+generateGraphic
+exit
+
+</code></pre></div></div>
+
+<h2 id="its-show-time">It’s show time!</h2>
+
+<p>Let’s run it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./generate_offer_metrics.sh
+
+</code></pre></div></div>
+
+<p>Now open ‘offer_metrics.png’ file:</p>
+
+<p><img src="/assets/images/2019-02-27-40bae51c-7ae4-469c-a5e5-efca9880a881/1551242246173.png" alt="No alt text provided for this image" /></p>
+
+<p>Pretty cool, isn’t it?</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Through this simple example we learnt how to plot a line graph from a file with <a href="https://www.json.org/">JSON</a> lines using Gnuplot. We saw:</p>
+
+<ul>
+  <li>How to parse <a href="https://www.json.org/">JSON</a> to <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV</a>;</li>
+  <li>The basic instructions to generate a line graph in <a href="http://www.gnuplot.info/">Gnuplot</a>;</li>
+  <li>How to invoke <a href="http://www.gnuplot.info/">Gnuplot</a> passing command line arguments.</li>
+</ul>
+
+<h2 id="download-the-files">Download the files</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/bash-json-gnuplot-example/src/master/">https://bitbucket.org/tiagoharris/bash-json-gnuplot-example/src/master/</a></p>

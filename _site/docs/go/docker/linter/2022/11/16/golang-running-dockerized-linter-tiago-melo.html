@@ -1,0 +1,225 @@
+<p><img src="/assets/images/2022-11-16-7c042d55-5c7f-45a4-8c48-564ba80c1593/2022-11-16-banner.jpeg" alt="Golang: running a dockerized linter" /></p>
+
+<p>Let’s begin this article with <a href="https://en.wikipedia.org/wiki/Lint_(software)?trk=article-ssr-frontend-pulse_little-text-block">Wikipedia’s definition for Linter</a>:</p>
+
+<blockquote>
+  <p>Lint, or a linter, is a <a href="https://en.wikipedia.org/wiki/Static_program_analysis?trk=article-ssr-frontend-pulse_little-text-block">static code analysis</a> tool used to flag programming errors, <a href="https://en.wikipedia.org/wiki/Software_bug?trk=article-ssr-frontend-pulse_little-text-block">bugs</a>, stylistic errors and suspicious constructs.</p>
+</blockquote>
+
+<p>It is always a good idea to continuously submit your source code to a <a href="https://en.wikipedia.org/wiki/Lint_(software)?trk=article-ssr-frontend-pulse_little-text-block">Linter</a>. With that in mind, I’ll show how we can use a <a href="http://docker.com?trk=article-ssr-frontend-pulse_little-text-block">dockerized</a> one.</p>
+
+<h2 id="meet-golangci-lint">Meet golangci-lint</h2>
+
+<p><a href="https://github.com/golangci/golangci-lint?trk=article-ssr-frontend-pulse_little-text-block">golangci-lint</a> is a fast Go linters runner. It runs linters in parallel, uses caching, supports yaml config, has integrations with all major IDE and has dozens of linters included.</p>
+
+<p>It’s often used both on local development and on <a href="https://en.wikipedia.org/wiki/CI/CD?trk=article-ssr-frontend-pulse_little-text-block">CI/CD systems</a>.</p>
+
+<h2 id="sample-project">Sample project</h2>
+
+<p>As you can see <a href="https://golangci-lint.run/usage/linters/?trk=article-ssr-frontend-pulse_little-text-block">here</a>, there are several supported <a href="https://en.wikipedia.org/wiki/Lint_(software)?trk=article-ssr-frontend-pulse_little-text-block">linters</a>. Some of them are enabled by default, while others can be enabled as you whish.</p>
+
+<p>In this example we’ll use:</p>
+
+<ul>
+  <li><a href="https://github.com/tdakkota/asciicheck?trk=article-ssr-frontend-pulse_little-text-block">asciicheck</a></li>
+  <li><a href="https://github.com/tetafro/godot?trk=article-ssr-frontend-pulse_little-text-block">godot</a></li>
+  <li><a href="https://github.com/bkielbasa/cyclop?trk=article-ssr-frontend-pulse_little-text-block">cyclop</a></li>
+  <li><a href="https://github.com/tommy-muehle/go-mnd?trk=article-ssr-frontend-pulse_little-text-block">gomnd</a></li>
+</ul>
+
+<h3 id="configuration">Configuration</h3>
+
+<p>Following the <a href="https://golangci-lint.run/usage/configuration/?trk=article-ssr-frontend-pulse_little-text-block">configuration instructions</a>, here’s our .golangci.yml:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>linters:
+  enable:
+    - asciicheck
+    - godot
+    - cyclop
+    - gomnd
+
+linters-settings:
+  cyclop:
+    max-complexity: 5
+</code></pre></div></div>
+
+<h3 id="some-bad-code">Some “bad” code</h3>
+
+<p>We have two packages: “packageone” and “packagetwo”, both violating the <a href="https://en.wikipedia.org/wiki/Lint_(software)?trk=article-ssr-frontend-pulse_little-text-block">linters</a> we enabled in our configuration:</p>
+
+<p>packageone/packageone.go</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package packageone
+
+import "fmt"
+
+// NonAsciiIdentifier does nothing useful
+func NonAsciiIdentifier() {
+    你好 := 1
+    fmt.Println(你好)
+}
+</code></pre></div></div>
+
+<p>It violates:</p>
+
+<ul>
+  <li>asciicheck</li>
+  <li>godot</li>
+</ul>
+
+<p>packagetwo/packagetwo.go</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+package packagetwo
+
+func uselessFunc() {
+
+}
+
+// ComplexFunction has a considerable high cyclomatic complexity
+func ComplexFunction(a, b, c int) bool {
+    var valid bool
+    if a == b {
+        if b &gt; 2 {
+            uselessFunc()
+        } else if a == 2 {
+            uselessFunc()
+        } else {
+            uselessFunc()
+        }
+    } else if b == c {
+        for b == c {
+            uselessFunc()
+            b++
+        }
+    } else if c == a {
+        for i := 0; i &lt; 10; i++ {
+            uselessFunc()
+        }
+    } else {
+        switch a {
+        case 7:
+            uselessFunc()
+        case 10:
+            uselessFunc()
+        case 13:
+            uselessFunc()
+        case 14:
+            uselessFunc()
+        default:
+            uselessFunc()
+        }
+    }
+
+    return valid
+}
+</code></pre></div></div>
+
+<p>It violates:</p>
+
+<ul>
+  <li>godot</li>
+  <li>cyclop</li>
+  <li>gomnd</li>
+</ul>
+
+<h3 id="running-it">Running it</h3>
+
+<p>Here’s our <a href="https://en.wikipedia.org/wiki/Make_(software)?trk=article-ssr-frontend-pulse_little-text-block">Makefile</a> that enables us to run the dockerized linter for a single package or for all packages at once:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+SHELL := /bin/bash
+
+.PHONY: help
+## help: shows this help message
+help:
+    @ echo "Usage: make [target]"
+    @ sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+
+.PHONY: lint
+## lint: runs linter for a given directory
+lint:
+    @ if [ -z "$(PACKAGE)" ]; then echo &gt;&amp;2 please set directory via variable PACKAGE; exit 2; fi
+    @ docker run  --rm -v "`pwd`:/workspace:cached" -w "/workspace/$(PACKAGE)" golangci/golangci-lint:latest golangci-lint run
+
+.PHONY: lint-all
+## lint-all: runs linter for all packages
+lint-all:
+    @ docker run  --rm -v "`pwd`:/workspace:cached" -w "/workspace/." golangci/golangci-lint:latest golangci-lint run
+</code></pre></div></div>
+
+<p>Let’s run it only for package “packagetwo”:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+$ make lint PACKAGE=packagetwo
+
+packagetwo.go:7:65: Comment should end in a period (godot)
+// ComplexFunction has a considerable high cyclomatic complexity
+                                                                ^
+packagetwo.go:8:1: calculated cyclomatic complexity for function ComplexFunction is 13, max is 5 (cyclop)
+func ComplexFunction(a, b, c int) bool {
+^
+packagetwo.go:29:8: mnd: Magic number: 7, in &lt;case&gt; detected (gomnd)
+        case 7:
+             ^
+packagetwo.go:31:8: mnd: Magic number: 10, in &lt;case&gt; detected (gomnd)
+        case 10:
+             ^
+packagetwo.go:33:8: mnd: Magic number: 13, in &lt;case&gt; detected (gomnd)
+        case 13:
+             ^
+packagetwo.go:35:8: mnd: Magic number: 14, in &lt;case&gt; detected (gomnd)
+        case 14:
+             ^
+packagetwo.go:11:10: mnd: Magic number: 2, in &lt;condition&gt; detected (gomnd)
+        if b &gt; 2 {
+               ^
+packagetwo.go:13:18: mnd: Magic number: 2, in &lt;condition&gt; detected (gomnd)
+        } else if a == 2 {
+                       ^
+make: *** [lint] Error 1
+</code></pre></div></div>
+
+<p>Now for all packages:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+$ make lint-all
+
+packagetwo/packagetwo.go:7:65: Comment should end in a period (godot)
+// ComplexFunction has a considerable high cyclomatic complexity
+                                                                ^
+packageone/packageone.go:5:42: Comment should end in a period (godot)
+// NonAsciiIdentifier does nothing useful
+                                         ^
+packageone/packageone.go:7:2: identifier "你好" contain non-ASCII character: U+4F60 '你' (asciicheck)
+    你好 := 1
+    ^
+packagetwo/packagetwo.go:8:1: calculated cyclomatic complexity for function ComplexFunction is 13, max is 5 (cyclop)
+func ComplexFunction(a, b, c int) bool {
+^
+packagetwo/packagetwo.go:29:8: mnd: Magic number: 7, in &lt;case&gt; detected (gomnd)
+        case 7:
+             ^
+packagetwo/packagetwo.go:31:8: mnd: Magic number: 10, in &lt;case&gt; detected (gomnd)
+        case 10:
+             ^
+packagetwo/packagetwo.go:33:8: mnd: Magic number: 13, in &lt;case&gt; detected (gomnd)
+        case 13:
+             ^
+packagetwo/packagetwo.go:35:8: mnd: Magic number: 14, in &lt;case&gt; detected (gomnd)
+        case 14:
+             ^
+packagetwo/packagetwo.go:11:10: mnd: Magic number: 2, in &lt;condition&gt; detected (gomnd)
+        if b &gt; 2 {
+               ^
+packagetwo/packagetwo.go:13:18: mnd: Magic number: 2, in &lt;condition&gt; detected (gomnd)
+        } else if a == 2 {
+                       ^
+make: *** [lint-all] Error 1
+</code></pre></div></div>
+
+<p>Sweet.</p>
+
+<h2 id="download-the-source">Download the source</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/golangci-lint-example?trk=article-ssr-frontend-pulse_little-text-block">https://bitbucket.org/tiagoharris/golangci-lint-example</a></p>

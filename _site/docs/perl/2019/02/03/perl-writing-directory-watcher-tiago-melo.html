@@ -1,0 +1,220 @@
+<p><img src="/assets/images/2019-02-03-58be17aa-21ab-401e-9f23-5fa6fb6f81df/2019-02-03-banner.jpeg" alt="Perl: writing a directory watcher" /></p>
+
+<p>Have you ever needed to watch a directory for changes? Let’s do this.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Sometimes is useful to monitor a directory and take some action when files or subdirectories are created, deleted or updated. Once I used this approach to write a script whose mission was to generate three different formats of an incoming image file and store them in an Amazon’s S3 bucket. In this article we’ll see how to effectively monitor a directory.</p>
+
+<h2 id="perl-modules">Perl modules</h2>
+
+<ul>
+  <li><a href="https://metacpan.org/pod/AnyEvent">AnyEvent</a></li>
+  <li><a href="https://metacpan.org/pod/AnyEvent::Loop">AnyEvent::Loop</a></li>
+  <li><a href="https://metacpan.org/pod/AnyEvent::Filesys::Notify">AnyEvent::Filesys::Notify</a></li>
+  <li><a href="https://metacpan.org/pod/Config::INI::Reader">Config::INI::Reader</a></li>
+</ul>
+
+<h2 id="the-script">The script</h2>
+
+<p>Let’s take a look at a script that monitors a certain directory and prints what were the changes.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#!/usr/bin/perl
+
+# This script monitors a directoty for changes.
+# Author: Tiago Melo (tiagoharris@gmail.com)
+
+use common::sense;
+use AnyEvent;
+use AnyEvent::Loop;
+use AnyEvent::Filesys::Notify;
+use Cwd 'abs_path';
+use Config::INI::Reader;
+use sigtrap qw/die normal-signals/;
+
+my $config    	= Config::INI::Reader-&gt;read_file('../conf/configuration.ini');
+my $watch_dir 	= abs_path $config-&gt;{general}-&gt;{watch_dir};
+
+# this is the function that will process the notifications.
+sub process {
+  my @notifications = @{$_[0]};
+
+  foreach my $notification (@notifications) {
+    my $file_type = $notification-&gt;is_dir ? "directory" : "regular file";
+
+    say $notification-&gt;path . " was " . $notification-&gt;type . " -&gt; $file_type";
+  }
+}
+
+# here we setup the notifier, specifying 'process' function as the callback.
+# we pass to 'process' function a reference of an array of notifications.
+my $notifier = AnyEvent::Filesys::Notify-&gt;new(
+  dirs =&gt; [ $watch_dir ],
+    cb   =&gt; sub {
+	  process \@_;
+	},
+
+  # http://search.cpan.org/~mgrimes/AnyEvent-Filesys-Notify-1.14/lib/AnyEvent/Filesys/Notify.pm
+  #In backends that support it (currently INotify2), parse the events instead of rescanning file system for changed stat() information.
+  #Note, that this might cause slight changes in behavior.
+  #In particular, the Inotify2 backend will generate an additional 'modified' event
+  #when a file changes (once when opened for write, and once when modified).
+
+  parse_events =&gt; 0,
+);
+
+# Event loop. This script will run until it is interrupted.
+AnyEvent::Loop::run;
+
+</code></pre></div></div>
+
+<p>Time to walk through it.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>my $config    	= Config::INI::Reader-&gt;read_file('../conf/configuration.ini');
+my $watch_dir 	= abs_path $config-&gt;{general}-&gt;{watch_dir};
+
+</code></pre></div></div>
+
+<p>Here we are using Config::INI::Reader module to read a property from a .ini file, in order to parameterize our script.</p>
+
+<p>This is how ‘configuration.ini’ looks like:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[general]
+watch_dir = ../watched_dir
+
+</code></pre></div></div>
+
+<p>I like to use namespaces in configuration files to keep it more organized. But if you don’t want to use one, like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>watch_dir = ../watched_dir
+
+</code></pre></div></div>
+
+<p>Then you’d read the property like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>my $watch_dir 	= abs_path $config-&gt;{_}-&gt;{watch_dir};
+
+</code></pre></div></div>
+
+<p>Next:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># this is the function that will process the notifications.
+sub process {
+  my @notifications = @{$_[0]};
+
+  foreach my $notification (@notifications) {
+    my $file_type = $notification-&gt;is_dir ? "directory" : "regular file";
+
+    say $notification-&gt;path . " was " . $notification-&gt;type . " -&gt; $file_type";
+  }
+}
+
+</code></pre></div></div>
+
+<p>This function is called with an array of notifications everytime changes occurs in the specified directory. Here we are only printing them; this is the point where we can take actions upon the files.</p>
+
+<p>Next:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># here we setup the notifier, specifying 'process' function as the callback.
+# we pass to 'process' function a reference of an array of notifications.
+my $notifier = AnyEvent::Filesys::Notify-&gt;new(
+  dirs =&gt; [ $watch_dir ],
+    cb   =&gt; sub {
+	  process \@_;
+	},
+
+  # http://search.cpan.org/~mgrimes/AnyEvent-Filesys-Notify-1.14/lib/AnyEvent/Filesys/Notify.pm
+  #In backends that support it (currently INotify2), parse the events instead of rescanning file system for changed stat() information.
+  #Note, that this might cause slight changes in behavior.
+  #In particular, the Inotify2 backend will generate an additional 'modified' event
+  #when a file changes (once when opened for write, and once when modified).
+
+  parse_events =&gt; 0,
+);
+
+</code></pre></div></div>
+
+<p>Here we are configuring the notifier. We pass an array of notifications to ‘process’ function.</p>
+
+<p>Finally:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Event loop. This script will run until it is interrupted.
+AnyEvent::Loop::run;
+
+</code></pre></div></div>
+
+<p>We are using an event loop. This script will run until it is interrupted.</p>
+
+<h2 id="running">Running</h2>
+
+<p>This is the suggested directory structure:</p>
+
+<p><img src="/assets/images/2019-02-03-58be17aa-21ab-401e-9f23-5fa6fb6f81df/1549220920929.png" alt="No alt text provided for this image" /></p>
+
+<p><strong>bin:</strong> this is were the script is located</p>
+
+<p><strong>conf:</strong> this is were the configuration file is located</p>
+
+<p><strong>watched_dir:</strong> the directory that we are monitoring</p>
+
+<p>Open up a terminal and run the script:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ perl directory_watcher.pl
+
+</code></pre></div></div>
+
+<p>Then, when we drop a file in the ‘watched_dir’, this is the output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/image.png was created -&gt; regular file
+
+</code></pre></div></div>
+
+<p>If we modify this file (renaming it to ‘image2.png’, for example), we will get:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/image.png was deleted -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/image2.png was created -&gt; regular file
+
+</code></pre></div></div>
+
+<p>Finally, if we delete this file we will get:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/image2.png was deleted -&gt; regular file
+
+</code></pre></div></div>
+
+<p>It works with directories too. Suppose we have the ‘files’ directory with this files:</p>
+
+<p><img src="/assets/images/2019-02-03-58be17aa-21ab-401e-9f23-5fa6fb6f81df/1549221862030.png" alt="No alt text provided for this image" /></p>
+
+<p>Then if we drop the ‘files’ directory to ‘watched_dir’, the output will be:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/files/image1.png was created -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image3.png was created -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image2.png was created -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files was created -&gt; directory
+
+</code></pre></div></div>
+
+<p>Likewise, if we modify a file in the ‘files’ subdirectory, the output will be:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/files/image1.png was deleted -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image11.png was created -&gt; regular file
+
+</code></pre></div></div>
+
+<p>And if we delete the subdirectory ‘files’, the output will be:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/home/tiago/desenv/perl/tutorial/watched_dir/files was deleted -&gt; directory
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image2.png was deleted -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image3.png was deleted -&gt; regular file
+/home/tiago/desenv/perl/tutorial/watched_dir/files/image11.png was deleted -&gt; regular file
+
+</code></pre></div></div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Through this simple example we learnt how we can monitor a directory for changes in a fast and reliable way.</p>
+
+<h2 id="download-the-source-code">Download the source code</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/directory-watcher/src/master/">https://bitbucket.org/tiagoharris/directory-watcher/src/master/</a></p>

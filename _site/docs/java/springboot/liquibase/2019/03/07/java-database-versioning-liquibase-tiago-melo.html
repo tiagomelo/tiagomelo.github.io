@@ -1,0 +1,804 @@
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/2019-03-07-banner.jpeg" alt="Java: database versioning with Liquibase" /></p>
+
+<p>Versioning database changes is as important as versioning source code. By using a database migration tool we can safely manage how the database evolves, instead of running a bunch of non versioned loose <a href="https://en.wikipedia.org/wiki/SQL">SQL</a> files.</p>
+
+<p>In some frameworks like <a href="https://rubyonrails.org/">Ruby On Rails</a>, database versioning occurs along the development. But when it comes to <a href="https://www.java.com">Java</a> world, I don’t see it happening so often.</p>
+
+<p>In this article we’ll see how to integrate <a href="http://www.liquibase.org/">Liquibase</a> with <a href="https://spring.io/projects/spring-boot">Spring Boot</a> to evolve the database schema of a <a href="https://www.java.com/">Java</a> application using <a href="https://dev.mysql.com/">MySQL</a>.</p>
+
+<h2 id="meet-liquibase">Meet Liquibase</h2>
+
+<p>Currently, the most popular database tools are <a href="https://flywaydb.org/">Flyway</a> and <a href="http://www.liquibase.org/">Liquibase</a>. I’ve choose the latter due to these benefits:</p>
+
+<ul>
+  <li>It’s database agnostic - it works for all major database vendors;</li>
+  <li>You can specify your changes in <a href="https://en.wikipedia.org/wiki/XML">XML</a>, <a href="https://en.wikipedia.org/wiki/YAML">YAML</a> , <a href="https://en.wikipedia.org/wiki/JSON">JSON</a> and <a href="https://en.wikipedia.org/wiki/SQL">SQL</a> formats.</li>
+</ul>
+
+<p>We’ll use <a href="https://en.wikipedia.org/wiki/YAML">YAML</a> format.</p>
+
+<h3 id="liquibase-concepts">Liquibase concepts</h3>
+
+<p>These are the key concepts:</p>
+
+<ul>
+  <li><strong>changeLog</strong>: a file that keeps track of all changes that need to run to update the DB;</li>
+  <li><strong>changeSet</strong>: these are atomic changes that would be applied to the database. Each <em>changeSet</em> is uniquely identified by ’id’ and ‘author’. Each <em>changeset</em> is run as a single transaction.</li>
+</ul>
+
+<h2 id="the-domain-model">The domain model</h2>
+
+<p>This is our initial domain model that will be evolved during this article:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551889004894.png" alt="No alt text provided for this image" /></p>
+
+<p>The ‘ <em>Library</em>’ table has a <a href="https://en.wikipedia.org/wiki/One-to-many_(data_model)">One To Many</a> relationship with ‘ <em>Book</em>’ table.</p>
+
+<h2 id="the-rails-way">The Rails way</h2>
+
+<p>When I had my first experience with <a href="https://rubyonrails.org/">Ruby On Rails</a>, back in 2007, the first feature that caught my attention was <a href="https://guides.rubyonrails.org/active_record_migrations.html">Active Record Migrations</a>. <a href="https://guides.rubyonrails.org/active_record_basics.html">Active Record</a> is the <a href="https://en.wikipedia.org/wiki/Object-relational_mapping">ORM</a> framework shipped with <a href="https://rubyonrails.org/">Ruby On Rails</a>.</p>
+
+<p>So, for the given domain model above, to generate a migration file that create the two tables:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551889803190.png" alt="No alt text provided for this image" /></p>
+
+<p>A migration file is created. Then, we add instructions:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551889938427.png" alt="No alt text provided for this image" /></p>
+
+<p>Alright. Let’s fire up the server:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551895942650.png" alt="No alt text provided for this image" /></p>
+
+<p>Then, using <a href="https://curl.haxx.se">cURL</a>, if we try to access ‘ <em>Book</em>’ resource, for example:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551896191865.png" alt="No alt text provided for this image" /></p>
+
+<p>We’ll get an error, as we can see at server’s log:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551896438272.png" alt="No alt text provided for this image" /></p>
+
+<p>Self-explanatory: we need to run the migration that will create the tables. Like this:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551896719171.png" alt="No alt text provided for this image" /></p>
+
+<p>Let’s check in <a href="https://dev.mysql.com/">MySQL</a>. Both tables were created:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551896923746.png" alt="No alt text provided for this image" /></p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551896938603.png" alt="No alt text provided for this image" /></p>
+
+<p>OK. suppose that we need to add two fields to ‘ <em>Books</em>’ table: ‘ <em>isbn</em>’ and ‘ <em>publisher</em>’. To accomplish this, we create another migration file like this:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551897245410.png" alt="No alt text provided for this image" /></p>
+
+<p>Then we open the migration file and add the instructions:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551897570482.png" alt="No alt text provided for this image" /></p>
+
+<p>Let’s run this migration:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551897757734.png" alt="No alt text provided for this image" /></p>
+
+<p>If we check the table again, both fields were added:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551898329969.png" alt="No alt text provided for this image" /></p>
+
+<p>What if ‘ <em>publisher</em>’ field is not necessary anymore? Let’s create a migration to fix this:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551898508752.png" alt="No alt text provided for this image" /></p>
+
+<p>This is the migration file:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551898618784.png" alt="No alt text provided for this image" /></p>
+
+<p>Let’s run this migration:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551898930992.png" alt="No alt text provided for this image" /></p>
+
+<p>Now if we check the table, ‘ <em>publisher</em>’ field was removed:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551899277332.png" alt="No alt text provided for this image" /></p>
+
+<h2 id="the-java-way">The Java way</h2>
+
+<p>How can we do the same in a Java application?</p>
+
+<p><a href="http://www.liquibase.org/">Liquibase</a> can be seamless integrated with <a href="https://spring.io/projects/spring-boot">Spring Boot</a>, so let’s begin.</p>
+
+<h3 id="creating-the-project">Creating the project</h3>
+
+<p><a href="http://start.spring.io/">Spring Initializr</a> is our start point:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551920253393.png" alt="No alt text provided for this image" /></p>
+
+<p>We’ve choose the following dependencies:</p>
+
+<ul>
+  <li><a href="https://dev.mysql.com/downloads/connector/j/8.0.html">MySQL</a>: to add ‘mysql-connector-java’ jar to our project;</li>
+  <li><a href="https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html#spring-boot-starter-data-jpa">JPA</a>: Starter for using Spring Data JPA with Hibernate;</li>
+  <li><a href="https://www.liquibase.org/">Liquibase</a>: Starter for using <a href="https://www.liquibase.org/">Liquibase</a>;</li>
+  <li><a href="https://spring.io/projects/spring-data-rest">Rest Repositories</a>: Starter for exposing Spring Data repositories over REST using Spring Data REST.</li>
+</ul>
+
+<p>Additionally, I’m using <a href="https://www.liquibase.org/documentation/maven/maven_update.html">Liquibase Maven plugin</a> to ease calling <a href="https://www.liquibase.org/">Liquibase</a> from command line as we’ll see in the following examples.</p>
+
+<p>This is the dependency:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;dependency&gt;
+	&lt;groupId&gt;org.liquibase&lt;/groupId&gt;
+	&lt;artifactId&gt;liquibase-maven-plugin&lt;/artifactId&gt;
+	&lt;version&gt;3.6.3&lt;/version&gt;
+&lt;/dependency&gt;
+
+</code></pre></div></div>
+
+<p>And this is its configuration:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;build&gt;
+	&lt;plugins&gt;
+		&lt;plugin&gt;
+			&lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+			&lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+		&lt;/plugin&gt;
+		&lt;plugin&gt;
+			&lt;groupId&gt;org.liquibase&lt;/groupId&gt;
+			&lt;artifactId&gt;liquibase-maven-plugin&lt;/artifactId&gt;
+			&lt;version&gt;3.6.3&lt;/version&gt;
+			&lt;configuration&gt;
+				&lt;propertyFile&gt;src/main/resources/liquibase.yml&lt;/propertyFile&gt;
+			&lt;/configuration&gt;
+		&lt;/plugin&gt;
+	&lt;/plugins&gt;
+&lt;/build&gt;
+
+</code></pre></div></div>
+
+<p>As stated in a <a href="https://www.linkedin.com/pulse/spring-boot-example-crud-restful-api-global-exception-tiago-melo/">previous post</a>, I rather not to expose entities or repositories directly, but just for the sake of demonstration, I’ll use <a href="https://spring.io/projects/spring-data-rest">Rest Repositories</a> this time. It makes it easy to build hypermedia-driven REST web services on top of <a href="https://spring.io/projects/spring-data">Spring Data</a> repositories.</p>
+
+<h3 id="configuration">Configuration</h3>
+
+<p>This is our ‘ <em>src/main/resources/application.yml</em>’ file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>spring:
+   datasource:
+      url: jdbc:mysql://localhost:3306/liquibase_test?useSSL=false
+      username: root
+      password:
+
+   jpa:
+      hibernate:
+         dialect: org.hibernate.dialect.MySQL5InnoDBDialect
+         ddl-auto: none
+
+   liquibase:
+      change-log: classpath:db/liquibase-changelog.yml
+
+</code></pre></div></div>
+
+<p>A few notes:</p>
+
+<ul>
+  <li>by setting ‘ <em>spring.jpa.hibernate.ddl-auto</em>’ to ‘ <em>none</em>’, the schema generation will be delegated to <a href="https://www.liquibase.org/">Liquibase</a>;</li>
+  <li>by default, <a href="https://www.liquibase.org/">Liquibase</a>’s changeLog file is expected to be in ‘ <em>db/changelog/db.changelog-master.yaml’</em>; but we are changing it by setting ‘ <em>spring.liquibase.change-log</em>’ to put it in ‘ <em>src/main/resources/db/liquibase-changelog.yml</em>’.</li>
+</ul>
+
+<p>And this is our ‘ <em>src/main/resources/liquibase.yml</em>’ file, which is used by <a href="https://www.liquibase.org/documentation/maven/maven_update.html">Liquibase Maven plugin</a>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>url: jdbc:mysql://localhost:3306/liquibase_test?useSSL=false
+username: root
+password:
+driver: com.mysql.cj.jdbc.Driver
+outputChangeLogFile: src/main/resources/db/liquibase-OutputChangelog.yml
+
+</code></pre></div></div>
+
+<h3 id="the-entities">The entities</h3>
+
+<p>This is our ‘ <em>Book</em>’ entity:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+
+/**
+ * Entity for table "Book"
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Entity
+public class Book {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(nullable=false)
+  private String title;
+
+  @ManyToOne
+  @JoinColumn(name="library_id")
+  private Library library;
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public Library getLibrary() {
+    return library;
+  }
+
+  public void setLibrary(Library library) {
+    this.library = library;
+  }
+}
+
+</code></pre></div></div>
+
+<p>And this is our ‘ <em>Library</em>’ entity:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.entity;
+
+import java.util.List;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+
+/**
+ * Entity for table "Library"
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Entity
+public class Library {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(nullable=false)
+  private String name;
+
+  @OneToMany(mappedBy = "library")
+  private List&lt;Book&gt; books;
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public List&lt;Book&gt; getBooks() {
+    return books;
+  }
+
+  public void setBooks(List&lt;Book&gt; books) {
+    this.books = books;
+  }
+}
+
+</code></pre></div></div>
+
+<h3 id="the-repositories">The repositories</h3>
+
+<p>As mentioned earlier, since we are using <a href="https://spring.io/projects/spring-data-rest">Rest Repositories</a>, there’s no need to write controllers; the repositories will be exposed directly.</p>
+
+<p>This is our ‘ <em>BookRepository</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.repository;
+
+import org.springframework.data.repository.CrudRepository;
+
+import com.tiago.entity.Book;
+
+/**
+ * Repository for {@link Book} entity.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+*/
+public interface BookRepository extends CrudRepository&lt;Book, Long&gt; { }
+
+</code></pre></div></div>
+
+<p>And this is our ‘ <em>LibraryRepository</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.repository;
+
+import org.springframework.data.repository.CrudRepository;
+
+import com.tiago.entity.Library;
+
+/**
+ * Repository for {@link Library} entity.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+*/
+public interface LibraryRepository extends CrudRepository&lt;Library, Long&gt; { }
+
+</code></pre></div></div>
+
+<h3 id="organizing-our-changelogs-migration-files">Organizing our changelogs (migration files)</h3>
+
+<p>Let’s take a look at our directory structure:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551923533445.png" alt="No alt text provided for this image" /></p>
+
+<p>This is ‘ <em>src/main/resources/db/liquibase-changelog.yml</em>’ file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- includeAll:
+   path: db/changelog/
+
+</code></pre></div></div>
+
+<p>We are telling <a href="https://www.liquibase.org/">Liquibase</a> to execute all changelog files in ‘ <em>src/main/resources/db/changelog/</em>’ directory.</p>
+
+<h3 id="changelog-1-creating-the-tables">Changelog #1: creating the tables</h3>
+
+<p>As a general rule, let’s adopt the following naming convention:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;migration_number&gt;_&lt;what_does_this_migration_do&gt;.yml
+
+</code></pre></div></div>
+
+<p>This way, <a href="https://www.liquibase.org/">Liquibase</a> will execute changelogs ordered by its number.</p>
+
+<p>This is our ‘ <em>1_create_book_and_library_tables.yml</em>’ file. As the name implies, it creates the tables:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- changeSet:
+   author: "tiago"
+   id: "creates_library_table"
+   changes:
+      - createTable:
+         tableName: "library"
+         columns:
+            - column:
+               name: "id"
+               type: "BIGINT"
+               autoIncrement: "true"
+               constraints:
+                  primaryKey: "true"
+            - column:
+               name: "name"
+               type: "VARCHAR(255)"
+               constraints:
+                  nullable: "false"
+                  unique: "true"
+
+- changeSet:
+   author: "tiago"
+   id: "creates_book_table"
+   changes:
+      - createTable:
+         tableName: "book"
+         columns:
+            - column:
+               name: "id"
+               type: "BIGINT"
+               autoIncrement: "true"
+               constraints:
+                  primaryKey: "true"
+            - column:
+               name: "title"
+               type: "VARCHAR(255)"
+               constraints:
+                  nullable: "false"
+                  unique: "true"
+            - column:
+               name: "library_id"
+               type: "BIGINT"
+               constraints:
+                  foreignKeyName: "fk_book_library"
+                  references: "library(id)"
+
+</code></pre></div></div>
+
+<p>Differently from <a href="https://rubyonrails.org/">Rails</a>, when we fire up the server, the changelogs will be automatically executed. Let’s see:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn spring-boot:run
+
+</code></pre></div></div>
+
+<p>Taking a look at server’s log, we notice that the two tables were created:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-03-06 23:17:14.103  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : SELECT COUNT(*) FROM liquibase_test.DATABASECHANGELOG
+2019-03-06 23:17:14.104  INFO 29090 --- [           main] l.c.StandardChangeLogHistoryService      : Reading from liquibase_test.DATABASECHANGELOG
+2019-03-06 23:17:14.105  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : SELECT * FROM liquibase_test.DATABASECHANGELOG ORDER BY DATEEXECUTED ASC, ORDEREXECUTED ASC
+2019-03-06 23:17:14.106  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : SELECT COUNT(*) FROM liquibase_test.DATABASECHANGELOGLOCK
+2019-03-06 23:17:14.123  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : CREATE TABLE liquibase_test.library (id BIGINT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, CONSTRAINT PK_LIBRARY PRIMARY KEY (id), UNIQUE (name))
+2019-03-06 23:17:14.145  INFO 29090 --- [           main] liquibase.changelog.ChangeSet            : Table library created
+2019-03-06 23:17:14.145  INFO 29090 --- [           main] liquibase.changelog.ChangeSet            : ChangeSet db/changelog/1_create_book_and_library_tables.yml::creates_library_table::tiago ran successfully in 23ms
+2019-03-06 23:17:14.146  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : SELECT MAX(ORDEREXECUTED) FROM liquibase_test.DATABASECHANGELOG
+2019-03-06 23:17:14.148  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : INSERT INTO liquibase_test.DATABASECHANGELOG (ID, AUTHOR, FILENAME, DATEEXECUTED, ORDEREXECUTED, MD5SUM, `DESCRIPTION`, COMMENTS, EXECTYPE, CONTEXTS, LABELS, LIQUIBASE, DEPLOYMENT_ID) VALUES ('creates_library_table', 'tiago', 'db/changelog/1_create_book_and_library_tables.yml', NOW(), 1, '8:a4b142ffda1ccd5c1840ddad83e249b5', 'createTable tableName=library', '', 'EXECUTED', NULL, NULL, '3.6.3', '1925034107')
+2019-03-06 23:17:14.151  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : CREATE TABLE liquibase_test.book (id BIGINT AUTO_INCREMENT NOT NULL, title VARCHAR(255) NOT NULL, library_id BIGINT NULL, CONSTRAINT PK_BOOK PRIMARY KEY (id), CONSTRAINT fk_book_library FOREIGN KEY (library_id) REFERENCES liquibase_test.library(id), UNIQUE (title))
+2019-03-06 23:17:14.173  INFO 29090 --- [           main] liquibase.changelog.ChangeSet            : Table book created
+2019-03-06 23:17:14.174  INFO 29090 --- [           main] liquibase.changelog.ChangeSet            : ChangeSet db/changelog/1_create_book_and_library_tables.yml::creates_book_table::tiago ran successfully in 24ms
+2019-03-06 23:17:14.175  INFO 29090 --- [           main] liquibase.executor.jvm.JdbcExecutor      : INSERT INTO liquibase_test.DATABASECHANGELOG (ID, AUTHOR, FILENAME, DATEEXECUTED, ORDEREXECUTED, MD5SUM, `DESCRIPTION`, COMMENTS, EXECTYPE, CONTEXTS, LABELS, LIQUIBASE, DEPLOYMENT_ID) VALUES ('creates_book_table', 'tiago', 'db/changelog/1_create_book_and_library_tables.yml', NOW(), 2, '8:a54634bf0781ac011818976bf5e36351', 'createTable tableName=book', '', 'EXECUTED', NULL, NULL, '3.6.3', '1925034107')
+2019-03-06 23:17:14.186  INFO 29090 --- [           main] l.lockservice.StandardLockService        : Successfully released change log lock
+
+</code></pre></div></div>
+
+<p>Let’s check them in <a href="https://dev.mysql.com/">MySQL</a>:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551925472278.png" alt="No alt text provided for this image" /></p>
+
+<p>Great.</p>
+
+<p>Now, using <a href="https://curl.haxx.se/">cURL</a>, let’s access the ‘ <em>Book</em>’ resource:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551926433999.png" alt="No alt text provided for this image" /></p>
+
+<p>No books as expected. The same occurs with ‘ <em>Library</em>’ resource:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551926525268.png" alt="No alt text provided for this image" /></p>
+
+<h3 id="changelog-2-and-3-initialization-data">Changelog #2 and #3: initialization data</h3>
+
+<p>Let’s see how we can initialize our tables.</p>
+
+<p>This is ‘ <em>2_insert_data_books.yml</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- changeSet:
+   author: "tiago"
+   id: "insert_data_books"
+   changes:
+      - insert:
+         tableName: "book"
+         columns:
+            - column:
+               name: "title"
+               value: "Test Book 1"
+
+</code></pre></div></div>
+
+<p>And this is ‘ <em>3_insert_data_library.yml</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- changeSet:
+   author: "tiago"
+   id: "insert_data_library"
+   changes:
+      - insert:
+         tableName: "library"
+         columns:
+            - column:
+               name: "name"
+               value: "Library 1"
+
+</code></pre></div></div>
+
+<p>Now let’s try something different. Instead of firing up the server to make <a href="https://www.liquibase.org/">Liquibase</a> to run these changelogs, we’ll do it by using the <a href="https://www.liquibase.org/documentation/maven/maven_update.html">Maven plugin</a>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn liquibase:update -Dliquibase.changeLogFile=db/liquibase-changelog.yml
+
+</code></pre></div></div>
+
+<p>This is the output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[INFO] INSERT INTO book (title) VALUES ('Test Book 1')
+[INFO] New row inserted into book
+[INFO] INSERT INTO book (title) VALUES ('Test Book 2')
+[INFO] New row inserted into book
+
+...
+[INFO] INSERT INTO library (name) VALUES ('Library 1')
+[INFO] New row inserted into library
+....
+
+</code></pre></div></div>
+
+<p>Then, if we fire up the server and access ‘ <em>Book</em>’ resource again…</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551927356995.png" alt="No alt text provided for this image" /></p>
+
+<p>Take a look at this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"library" : {
+   "href" : "http://localhost:8080/books/1/library"
+}
+
+</code></pre></div></div>
+
+<p>We’ll use this URL to associate this book to ‘ <em>Library 1</em>’ soon.</p>
+
+<p>Calling ‘ <em>Library</em>’ resource:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551927479429.png" alt="No alt text provided for this image" /></p>
+
+<p>Now we’ll associate ‘ <em>Test Book 1</em>’ to ‘ <em>Library 1</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ curl -i -X PUT -H "Content-Type:text/uri-list" -d "http://localhost:8080/libraries/1" http://localhost:8080/books/1/library
+
+</code></pre></div></div>
+
+<p>Then we can check if it worked, by querying the ‘ <em>library</em>’ association of our book:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551928067765.png" alt="No alt text provided for this image" /></p>
+
+<h3 id="changelog-4-adding-columns">Changelog #4: adding columns</h3>
+
+<p>During the development, we found necessary to add ‘ <em>isbn</em>’ and ‘ <em>publisher</em>’ fields to our ‘ <em>book</em>’ table.</p>
+
+<p>The first step is to create the changelog file. This is ‘ <em>4_add_isbn_and_publisher_to_book.yml</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- changeSet:
+   author: "tiago"
+   id: "add_isbn_and_publisher_to_book"
+   changes:
+   - addColumn:
+      columns:
+      - column:
+          name: "isbn"
+          type: "VARCHAR(255)"
+          constraints:
+            nullable: "false"
+      - column:
+          name: "publisher"
+          type: "VARCHAR(255)"
+          constraints:
+            nullable: "false"
+      tableName: "book"
+
+</code></pre></div></div>
+
+<p>Then, let’s run the changelog:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn liquibase:update -Dliquibase.changeLogFile=db/liquibase-changelog.yml
+
+</code></pre></div></div>
+
+<p>This is the output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[INFO] ALTER TABLE book ADD isbn VARCHAR(255) NOT NULL, ADD publisher VARCHAR(255) NOT NULL
+[INFO] Columns isbn(VARCHAR(255)),publisher(VARCHAR(255)) added to book
+[INFO] ChangeSet db/changelog/4_add_isbn_and_publisher_to_book.yml::add_isbn::tiago ran successfully in 60ms
+
+</code></pre></div></div>
+
+<p>Let’s check it in <a href="https://dev.mysql.com/">MySQL</a>:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551928739987.png" alt="No alt text provided for this image" /></p>
+
+<p>Great. The second step is to change our ‘ <em>Book</em>’ entity to add these two new fields:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+
+/**
+ * Entity for table "Book"
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Entity
+public class Book {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(nullable=false)
+  private String title;
+
+  @ManyToOne
+  @JoinColumn(name="library_id")
+  private Library library;
+
+  @Column(nullable=false)
+  private String isbn;
+
+  @Column(nullable=false)
+  private String publisher;
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public Library getLibrary() {
+    return library;
+  }
+
+  public void setLibrary(Library library) {
+    this.library = library;
+  }
+
+  public String getIsbn() {
+    return isbn;
+  }
+
+  public void setIsbn(String isbn) {
+    this.isbn = isbn;
+  }
+
+  public String getPublisher() {
+    return publisher;
+  }
+
+  public void setPublisher(String publisher) {
+    this.publisher = publisher;
+  }
+}
+
+</code></pre></div></div>
+
+<p>Now let’s update our book to set ‘ <em>isbn</em>’ and ‘ <em>publisher</em>’:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551929229492.png" alt="No alt text provided for this image" /></p>
+
+<h3 id="changelog-5-dropping-a-column">Changelog #5: dropping a column</h3>
+
+<p>The ‘ <em>publisher</em>’ field is not necessary anymore.</p>
+
+<p>The first step is to create the changelog file. This is ‘ <em>5_drop_publisher_from_book.yml</em>’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>databaseChangeLog:
+- changeSet:
+   author: "tiago"
+   id: "drop_publisher_from_book"
+   changes:
+   - dropColumn:
+      columnName: "publisher"
+      tableName: "book"
+
+</code></pre></div></div>
+
+<p>Then, let’s run the changelog:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mvn liquibase:update -Dliquibase.changeLogFile=db/liquibase-changelog.yml
+
+</code></pre></div></div>
+
+<p>This is the output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[INFO] ALTER TABLE book DROP COLUMN publisher
+[INFO] Column book.publisher dropped
+
+</code></pre></div></div>
+
+<p>Let’s check it in <a href="https://dev.mysql.com/">MySQL</a>:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551929815117.png" alt="No alt text provided for this image" /></p>
+
+<p>OK. The second step is to change our ‘ <em>Book</em>’ entity to remove ‘ <em>publisher</em>’ property:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+
+/**
+ * Entity for table "Book"
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Entity
+public class Book {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(nullable=false)
+  private String title;
+
+  @ManyToOne
+  @JoinColumn(name="library_id")
+  private Library library;
+
+  @Column(nullable=false)
+  private String isbn;
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public Library getLibrary() {
+    return library;
+  }
+
+  public void setLibrary(Library library) {
+    this.library = library;
+  }
+
+  public String getIsbn() {
+    return isbn;
+  }
+
+  public void setIsbn(String isbn) {
+    this.isbn = isbn;
+  }
+}
+
+</code></pre></div></div>
+
+<p>Now let’s fire up the server and check our ‘ <em>Book</em>’ resource:</p>
+
+<p><img src="/assets/images/2019-03-07-a96a93f8-5bb0-481f-af29-5a086529540f/1551930063588.png" alt="No alt text provided for this image" /></p>
+
+<p>Great! The ‘ <em>publisher</em>’ property does not exists anymore.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Versioning database changes is as important as versioning source code, and tools like <a href="http://www.liquibase.org/">Liquibase</a> makes it possible to do it in a safe and manageable way.</p>
+
+<p>Through this simple example we learnt how we can evolve database in a Java application by integrating <a href="http://www.liquibase.org/">Liquibase</a> with <a href="https://spring.io/projects/spring-boot">Spring Boot</a>.</p>
+
+<h2 id="download-the-source">Download the source</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/liquibase-hibernate-example/src/master/">https://bitbucket.org/tiagoharris/liquibase-hibernate-example/src/master/</a></p>

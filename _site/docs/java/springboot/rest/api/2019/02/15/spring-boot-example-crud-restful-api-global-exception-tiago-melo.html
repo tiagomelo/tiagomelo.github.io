@@ -1,0 +1,1493 @@
+<p><img src="/assets/images/2019-02-15-e3ae59fd-0d46-40c5-97e9-a5c8791d1145/2019-02-15-banner.png" alt="Spring Boot: an example of a CRUD RESTful API with global exception handling" /></p>
+
+<p>As <a href="https://spring.io/projects/spring-boot">Spring Boot</a> popularity keeps growing, it’s becoming the framework of choice to ease the development of different kinds of applications, like web apps, stand-alone apps or RESTful APIs, for example. In this article we’ll see how we can write a CRUD RESTFul API with global exception handling.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>When writing a RESTFul API, it’s very important to provide appropriate error messages to the caller to indicate the error cases in a clean and concise manner. But is it possible to handle exceptions in a more elegant way by centralizing error handling logic? Fortunately, Spring Boot provides a pretty straightforward way to tackle this: meet the <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/ControllerAdvice.html">@ControllerAdvice</a> annotation.</p>
+
+<h2 id="the-test-project">The test project</h2>
+
+<p>I’ve written a <a href="https://bitbucket.org/tiagoharris/crud-exceptionhandling-example/src/master/">small project</a> using <a href="https://spring.io/projects/spring-boot">Spring Boot</a> to implement a very simple CRUD RESTFul API to manage Students. Besides exception handling, we’ll see some interesting things as well:</p>
+
+<ul>
+  <li>bootstrapping with <a href="http://start.spring.io/">Spring Initializr</a>;</li>
+  <li>database initialization using SQL scripts;</li>
+  <li>database configuration;</li>
+  <li>layered architecture;</li>
+  <li>use of <a href="https://en.wikipedia.org/wiki/Data_transfer_object">DTO</a> to avoid exposing the entity directly;</li>
+  <li>use of <a href="https://www.eclemma.org/jacoco/">JaCoCo</a> that help us to keep a good test coverage.</li>
+</ul>
+
+<p>So let’s get started.</p>
+
+<h2 id="creating-the-project">Creating the project</h2>
+
+<p><a href="http://start.spring.io/">Spring Initializr</a> is our start point:</p>
+
+<p><img src="/assets/images/2019-02-15-e3ae59fd-0d46-40c5-97e9-a5c8791d1145/1550188477132.png" alt="No alt text provided for this image" /></p>
+
+<p>We’ve choose the following dependencies:</p>
+
+<ul>
+  <li><a href="https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html#spring-boot-starter-web">Web</a>: Starter for building web, including RESTful, applications using Spring MVC. Uses Tomcat as the default embedded container.</li>
+  <li><a href="https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html#spring-boot-starter-data-jpa">JPA</a>: Starter for using Spring Data JPA with Hibernate.</li>
+  <li><a href="https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-devtools.html">DevTools</a>: utility tool that offers property defaults, automatic restart, live reload, etc</li>
+  <li><a href="http://www.h2database.com/html/main.html">H2</a>: one of the most popular in memory databases.</li>
+</ul>
+
+<h2 id="database-initialization">Database initialization</h2>
+
+<p>We’ll initialize the database using SQL scripts. This approach does not require a command line runner to populate data, nor Hibernate to create the database schema. Everything will be defined in two SQL scripts: <strong>schema.sql</strong> and <strong>data.sql</strong>, both located in ‘src/main/resources’ folder.</p>
+
+<p>The schema is defined in <strong>schema.sql</strong>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE IF NOT EXISTS `student` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  `email` varchar(50) NOT NULL,
+  `birth_date` date not null,
+
+  PRIMARY KEY(`id`),
+  UNIQUE(`name`, `email`, `birth_date`)
+) engine=InnoDB default charset=utf8;
+
+</code></pre></div></div>
+
+<p>The initialization data is defined in <strong>data.sql</strong>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSERT INTO student(birth_date, name, email) values ('2001-01-01', 'Marcelino Lund','marcelino@email.com');
+INSERT INTO student(birth_date, name, email) values ('2001-02-10', 'Malorie Hawkes','malorie@email.com');
+INSERT INTO student(birth_date, name, email) values ('2000-03-09', 'Kara Eckel','kara@email.com');
+INSERT INTO student(birth_date, name, email) values ('2001-05-29', 'Gwen Culpepper','gwen@email.com');
+INSERT INTO student(birth_date, name, email) values ('2000-04-12', 'Ingrid Palmer','dennis@email.com');
+
+</code></pre></div></div>
+
+<h2 id="database-configuration">Database configuration</h2>
+
+<p>The application will persist data to disk. This is our ‘src/main/resources/application.yml’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2
+  datasource:
+    url: jdbc:h2:file:./db/crud
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+    continueOnError: true
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
+
+</code></pre></div></div>
+
+<p>A few notes:</p>
+
+<ul>
+  <li>we are defining ‘path’ as ‘/h2’. This way you can access <a href="http://www.h2database.com/html/main.html">H2</a> console by hitting ‘http://localhost:8080/h2’ once you fire up the application;</li>
+  <li>by defining ‘url’ as ‘jdbc:h2:file:./db/crud’, we are telling to <a href="http://www.h2database.com/html/main.html">H2</a> that we will persist to disk rather than in memory. The database file will be stored at ‘db/crud’;</li>
+  <li>setting ‘continueOnError’ to ‘true’ prevents errors when initializing database with <strong>data.sql</strong>, if some of the records already exists in database.</li>
+  <li>remember: we are using JPA and initializing our database via SQL scripts; so we don’t want Hibernate do generate the DDL, that’s why we are setting ‘ddl-auto’ to ‘none’.</li>
+</ul>
+
+<p>The unit tests will use an in memory database. This is our ‘src/test/resources/application.yml’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: sa
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+</code></pre></div></div>
+
+<p>A few notes:</p>
+
+<ul>
+  <li>notice ‘url’ defined as ‘jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1’. This is the way to define a <a href="http://www.h2database.com/html/main.html">H2</a> in memory database;</li>
+  <li>since it’s a database used for unit testing, we want a fresh database every time we launch the tests. That’s why we define ‘ddl-auto’ as ‘create-drop’.</li>
+</ul>
+
+<p>Now, to initialize our in memory test database, we define a file called <strong>import.sql</strong> in ‘src/test/resources’ folder:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSERT INTO student(birth_date, name, email) values ('2001-01-01', 'Student 1','student1@email.com');
+INSERT INTO student(birth_date, name, email) values ('2001-02-10', 'Student 2','student2@email.com');
+INSERT INTO student(birth_date, name, email) values ('2000-03-09', 'Student 3','student3@email.com');
+INSERT INTO student(birth_date, name, email) values ('2001-05-29', 'Student 4','student4@email.com');
+INSERT INTO student(birth_date, name, email) values ('2000-04-12', 'Student 5','student5@email.com');
+
+</code></pre></div></div>
+
+<h2 id="the-classes">The classes</h2>
+
+<p>It’s time to dig in. Let’s see how we implement each layer of our API.</p>
+
+<h3 id="the-persistence-layer">The persistence layer</h3>
+
+<p>This is our entity:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.entity;
+
+import java.time.LocalDate;
+import java.util.Objects;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+/**
+ * Entity for table "Student"
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Entity(name = "student")
+public class Student {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer id;
+
+  private String name;
+
+  private String email;
+
+  private LocalDate birthDate;
+
+  public Integer getId() {
+    return id;
+  }
+
+  public void setId(Integer id) {
+    this.id = id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public LocalDate getBirthDate() {
+    return birthDate;
+  }
+
+  public void setBirthDate(LocalDate birthDate) {
+    this.birthDate = birthDate;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+
+    if (o == null) return false;
+
+    if (this.getClass() != o.getClass()) return false;
+
+    Student student = (Student) o;
+
+    return Objects.equals(getId(), student.getId())
+      &amp;&amp; Objects.equals(getName(), student.getName())
+      &amp;&amp; Objects.equals(getEmail(), student.getEmail())
+      &amp;&amp; Objects.equals(getBirthDate(), student.getBirthDate());
+  }
+
+  @Override
+  public int hashCode() {
+    int hash = 7;
+
+    hash = 31 * hash + Objects.hashCode(id);
+    hash = 31 * hash + Objects.hashCode(name);
+    hash = 31 * hash + Objects.hashCode(email);
+    hash = 31 * hash + Objects.hashCode(birthDate);
+    return hash;
+  }
+}
+
+</code></pre></div></div>
+
+<p>Repository:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.tiago.entity.Student;
+
+/**
+ * Repository for {@link Student} entity.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+*/
+@Repository
+public interface StudentRepository extends JpaRepository&lt;Student, Integer&gt; {
+
+  /**
+   * Find all students born between a date range
+   *
+   * @param fromDate
+   * @param toDate
+   * @return the list of students
+   */
+  @Query("SELECT s FROM student s WHERE s.birthDate BETWEEN ?1 and ?2")
+  List&lt;Student&gt; findAllStudentsBornBetween(LocalDate fromDate, LocalDate toDate);
+}
+
+</code></pre></div></div>
+
+<h3 id="the-service-layer">The service layer</h3>
+
+<p>Service class:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.service;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import com.tiago.entity.Student;
+import com.tiago.exception.ResourceNotFoundException;
+
+/**
+ * Service to manage students.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+public interface StudentService {
+
+  /**
+   * Finds a Student by id
+   *
+   * @param id
+   * @return {@link Student}
+   * @throws ResourceNotFoundException if no {@link Student} is found
+   */
+  Student findById(Integer id);
+
+  /**
+   * Find all students born between the desired date range
+   *
+   * @param fromDate
+   * @param toDate
+   * @return the list of students
+   */
+  List&lt;Student&gt; findByBirthDateBetween(LocalDate fromDate, LocalDate toDate);
+
+  /**
+   * Find all students
+   *
+   * @return the list of students
+   */
+  List&lt;Student&gt; findAll();
+
+  /**
+   * Saves a student
+   *
+   * @param student to be saved
+   * @return the saved student
+   */
+  Student save(Student student);
+
+  /**
+   * Deletes a student
+   *
+   * @param id
+   * @throws ResourceNotFoundException if no {@link Student} is found
+   */
+  void delete(Integer id);
+}
+
+</code></pre></div></div>
+
+<p>Service class implementation:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.service.impl;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.tiago.entity.Student;
+import com.tiago.exception.ResourceNotFoundException;
+import com.tiago.repository.StudentRepository;
+import com.tiago.service.StudentService;
+
+/**
+ * Implements {@link StudentService} interface
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@Service
+public class StudentServiceImpl implements StudentService {
+
+  @Autowired
+  StudentRepository repository;
+
+  /* (non-Javadoc)
+   * @see com.tiago.service.StudentService#findById(java.lang.Long)
+   */
+  @Override
+  public Student findById(Integer id) {
+    Student student = repository.findById(id).orElse(null);
+
+    if (student == null) {
+      throw new ResourceNotFoundException(Student.class.getSimpleName(), "id", id);
+    }
+
+    return student;
+  }
+
+  /* (non-Javadoc)
+   * @see com.tiago.service.StudentService#findByBirthDateBetween(java.time.LocalDate, java.time.LocalDate)
+   */
+  @Override
+  public List&lt;Student&gt; findByBirthDateBetween(LocalDate fromDate, LocalDate toDate) {
+    return repository.findAllStudentsBornBetween(fromDate, toDate);
+  }
+
+  /* (non-Javadoc)
+   * @see com.tiago.service.StudentService#findAll()
+   */
+  @Override
+  public List&lt;Student&gt; findAll() {
+    return repository.findAll();
+  }
+
+  /* (non-Javadoc)
+   * @see com.tiago.service.StudentService#save(com.tiago.entity.Student)
+   */
+  @Override
+  public Student save(Student student) {
+    return repository.save(student);
+  }
+
+  /* (non-Javadoc)
+   * @see com.tiago.service.StudentService#delete(java.lang.Long)
+   */
+  @Override
+  public void delete(Integer id) {
+    Student student = findById(id);
+
+    repository.delete(student);
+  }
+}
+
+</code></pre></div></div>
+
+<h3 id="the-controller-layer">The controller layer</h3>
+
+<p>This is our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.controller;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.validation.Valid;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.tiago.dto.StudentDTO;
+import com.tiago.entity.Student;
+import com.tiago.service.StudentService;
+
+/**
+ * Restful controller responsible for managing students
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@RestController
+@RequestMapping("/api")
+public class StudentController {
+
+  @Autowired
+  ModelMapper modelMapper;
+
+  @Autowired
+  StudentService service;
+
+  /**
+   * Get all students
+   *
+   * @return the list of students
+   */
+  @GetMapping("/students")
+  public List&lt;StudentDTO&gt; getAllStudents() {
+    List&lt;Student&gt; students = service.findAll();
+
+    return students.stream().map(student -&gt; convertToDTO(student)).collect(Collectors.toList());
+  }
+
+  /**
+   * Get all students that were born between the desired date range
+   *
+   * @param fromDate
+   * @param toDate
+   * @return the list of students
+   */
+  @GetMapping(path = "/students/bornBetween")
+  public List&lt;StudentDTO&gt; getAllStudentsThatWereBornBetween(
+      @RequestParam(value = "fromDate") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fromDate,
+      @RequestParam(value = "toDate") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate toDate) {
+    List&lt;Student&gt; students = service.findByBirthDateBetween(fromDate, toDate);
+
+    return students.stream().map(student -&gt; convertToDTO(student)).collect(Collectors.toList());
+  }
+
+  /**
+   * Creates a student
+   *
+   * @param studentDTO
+   * @return the created student
+   */
+  @PostMapping("/student")
+  public StudentDTO createStudent(@Valid @RequestBody StudentDTO studentDTO) {
+    Student student = convertToEntity(studentDTO);
+
+    return convertToDTO(service.save(student));
+  }
+
+  /**
+   * Updates a student
+   *
+   * @param studentId
+   * @param studentDTO
+   * @return the updated student
+   */
+  @PutMapping("/student/{id}")
+  public StudentDTO updateStudent(@PathVariable(value = "id", required = true) Integer studentId,
+      @Valid @RequestBody StudentDTO studentDTO) {
+    studentDTO.setId(studentId);
+    Student student = convertToEntity(studentDTO);
+
+    return convertToDTO(service.save(student));
+  }
+
+  /**
+   * Deletes a student
+   *
+   * @param studentId
+   * @return 200 OK
+   */
+  @DeleteMapping("/student/{id}")
+  public ResponseEntity&lt;?&gt; deleteStudent(@PathVariable(value = "id") Integer studentId) {
+    service.delete(studentId);
+
+    return ResponseEntity.ok().build();
+  }
+
+  private StudentDTO convertToDTO(Student student) {
+    return modelMapper.map(student, StudentDTO.class);
+  }
+
+  private Student convertToEntity(StudentDTO studentDTO) {
+    Student student = null;
+
+    if(studentDTO.getId() != null) {
+      student = service.findById(studentDTO.getId());
+    }
+
+    student = modelMapper.map(studentDTO, Student.class);
+
+    return student;
+  }
+}
+
+</code></pre></div></div>
+
+<h3 id="the-exceptionhandlingcontroller">The ExceptionHandlingController</h3>
+
+<p>This is our global exception handler: a class annotated with ‘@ControllerAdvice’ that handles exceptions thrown by the controller layer.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.exception;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import com.tiago.util.ValidationUtil;
+
+/**
+ * This class handles the exceptions thrown by the controller layer.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@ControllerAdvice
+public class ExceptionHandlingController {
+
+  /**
+   * This exception is thrown when a resource is not found
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; resourceNotFound(ResourceNotFoundException ex) {
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("Not Found");
+    response.setErrorMessage(ex.getMessage());
+
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.NOT_FOUND);
+  }
+
+  /**
+   * This exception is thrown when inputs are invalid
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; invalidInput(MethodArgumentNotValidException ex) {
+    BindingResult result = ex.getBindingResult();
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("Bad Request");
+    response.setErrorMessage("Invalid inputs");
+    response.setErrors(new ValidationUtil().fromBindingErrors(result));
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+  }
+
+  /**
+   * This exception is thrown when query string parameter is missing
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; missingRequestParameter(MissingServletRequestParameterException ex) {
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("Bad Request");
+    response.setErrorMessage(ex.getMessage());
+
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+  }
+
+  /**
+   * This exception is thrown when an error occurs when parsing input JSON
+   * or if it's missing
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; invalidRequestData(HttpMessageNotReadableException ex) {
+    Throwable mostSpecificCause = ex.getMostSpecificCause();
+
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("Bad Request");
+
+    if (mostSpecificCause != null) {
+      String message = mostSpecificCause.getMessage();
+
+      if(message.matches("(.*)Required request body is missing(.*)")) {
+        response.setErrorMessage("Missing request body");
+      } else {
+        response.setErrorMessage(mostSpecificCause.getMessage());
+      }
+    } else {
+      response.setErrorMessage(ex.getMessage());
+    }
+
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+  }
+
+  /**
+   * This exception is thrown when an error occurs while parsing the value
+   * of a query string parameter
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+    String name = ex.getName();
+    String type = ex.getRequiredType().getSimpleName();
+    Object value = ex.getValue();
+    String message = String.format("'%s' should be a valid '%s' and '%s' isn't", name, type, value);
+
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("Bad Request");
+    response.setErrorMessage(message);
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+  }
+
+  /**
+   * This exception is thrown when the new record conflicts with an
+   * existing record in the database
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; constraintViolation(DataIntegrityViolationException ex) {
+    ExceptionResponse response = new ExceptionResponse();
+
+    response.setErrorCode("Conflict");
+    response.setErrorMessage("This student is already registered");
+
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.CONFLICT);
+  }
+
+  /**
+   * This is a general catching exception
+   *
+   * @param ex
+   * @return {@link ExceptionResponse}
+   */
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity&lt;ExceptionResponse&gt; handleException(Exception ex) {
+    ExceptionResponse response = new ExceptionResponse();
+    response.setErrorCode("error");
+    response.setErrorMessage(ex.getMessage());
+
+    return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+}
+
+</code></pre></div></div>
+
+<h3 id="the-exceptionresponse">The ExceptionResponse</h3>
+
+<p>This class represents the error JSON message that will be presented to the final user:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.exception;
+
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+/**
+ * This class holds information of a given exception.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ExceptionResponse {
+  private String errorCode;
+  private String errorMessage;
+  private List&lt;String&gt; errors;
+
+  public ExceptionResponse() {
+  }
+
+  public String getErrorCode() {
+    return errorCode;
+  }
+
+  public void setErrorCode(String errorCode) {
+    this.errorCode = errorCode;
+  }
+
+  public String getErrorMessage() {
+    return errorMessage;
+  }
+
+  public void setErrorMessage(String errorMessage) {
+    this.errorMessage = errorMessage;
+  }
+
+  public List&lt;String&gt; getErrors() {
+    return errors;
+  }
+
+  public void setErrors(List&lt;String&gt; errors) {
+    this.errors = errors;
+  }
+}
+
+</code></pre></div></div>
+
+<h3 id="the-validationutil">The ValidationUtil</h3>
+
+<p>This is a utility class that helps formatting error messages coming from validation errors:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.util;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.validation.Errors;
+import org.springframework.validation.ObjectError;
+
+import com.tiago.exception.ExceptionHandlingController;
+
+/**
+ * Utility class used in {@link ExceptionHandlingController} to build errors.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+public class ValidationUtil {
+
+	/**
+	 * Builds a list of validation errors.
+	 *
+	 * @param errors
+	 * @return the list of validations errors
+	 */
+	public List&lt;String&gt; fromBindingErrors(Errors errors) {
+		List&lt;String&gt; validationErrors = new ArrayList&lt;String&gt;();
+		for (ObjectError objectError : errors.getAllErrors()) {
+			validationErrors.add(objectError.getDefaultMessage());
+		}
+		return validationErrors;
+	}
+}
+
+</code></pre></div></div>
+
+<h2 id="its-show-time">It’s show time!</h2>
+
+<p>Now let’s explore our API. This is what it does:</p>
+
+<ul>
+  <li><strong>GET /api/students</strong>: returns a list of students;</li>
+  <li>**GET /api/students/bornBetween?fromDate=<yyyy-MM-dd>&amp;toDate=<yyyy-MM-dd>**: returns a list of students born between a desired date range;</yyyy-MM-dd></yyyy-MM-dd></li>
+  <li><strong>POST /api/student</strong>: creates a student from a JSON in the request body;</li>
+  <li><strong>PUT /api/student/{id}</strong>: updates a student with the given ID, from a JSON in the request body;</li>
+  <li><strong>DELETE /api/student/{id}</strong>: deletes a student with the given ID.</li>
+</ul>
+
+<p>For each endpoint we’ll test failure scenarios, if applicable, showing how the application handles error messages.</p>
+
+<p>We’ll use <a href="https://curl.haxx.se/">cURL</a> to test it.</p>
+
+<p>Fire up the server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ mvn spring-boot:run
+
+</code></pre></div></div>
+
+<h3 id="testing-get-apistudents">Testing GET /api/students</h3>
+
+<p>Let’s see how it is implemented in our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * Get all students
+ *
+ * @return the list of students
+ */
+@GetMapping("/students")
+public List&lt;StudentDTO&gt; getAllStudents() {
+  List&lt;Student&gt; students = service.findAll();
+
+  return students.stream().map(student -&gt; convertToDTO(student)).collect(Collectors.toList());
+}
+
+</code></pre></div></div>
+
+<p>As mentioned ealier, we are using <a href="https://en.wikipedia.org/wiki/Data_transfer_object">DTO</a> to avoid exposing the entity directly.</p>
+
+<p><a href="https://stackoverflow.com/users/1426227/cassio-mazzochi-molin">Cassio Mazzochi</a> gave a really good <a href="https://stackoverflow.com/a/36175349">explanation</a> about why it’s a good idea to use <a href="https://en.wikipedia.org/wiki/Data_transfer_object">DTO</a> s in a RESTFul API:</p>
+
+<blockquote>
+  <p>This pattern was created with a very well defined purpose:
+ <strong>transfer data to <em>remote interfaces</em></strong>, just like
+ <em>web services</em>.This pattern fits very well in a REST API and DTOs will give you more
+ <em>flexibility</em> in the long run. REST resources representations don’t need to have the same attributes as the persistence models: you may need to omit, add or rename attributes.</p>
+</blockquote>
+
+<p>We are using <a href="http://modelmapper.org/">ModelMapper</a> to map <a href="https://en.wikipedia.org/wiki/Data_transfer_object">DTO</a> s to entities and vice-versa.</p>
+
+<p>So, this is how we map ‘Student’ entity to ‘StudentDTO’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>private StudentDTO convertToDTO(Student student) {
+  return modelMapper.map(student, StudentDTO.class);
+}
+</code></pre></div></div>
+
+<p>Pretty straightforward. By <a href="https://en.wikipedia.org/wiki/Reflection_(computer_programming)">reflection</a>, all fields with the same name in ‘StudentDTO’ are mapped to ‘Student’ fields.</p>
+
+<p>Now let’s call the endpoint:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v "http://localhost:8080/api/students"
+
+</code></pre></div></div>
+
+<p>As we initialized our database, we’ll get:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[
+  {
+    "id": 1,
+    "name": "Marcelino Lund",
+    "email": "marcelino@email.com",
+    "birthDate": "2001-01-01"
+  },
+  {
+    "id": 2,
+    "name": "Malorie Hawkes",
+    "email": "malorie@email.com",
+    "birthDate": "2001-02-10"
+  },
+  {
+    "id": 3,
+    "name": "Kara Eckel",
+    "email": "kara@email.com",
+    "birthDate": "2000-03-09"
+  },
+  {
+    "id": 4,
+    "name": "Gwen Culpepper",
+    "email": "gwen@email.com",
+    "birthDate": "2001-05-29"
+  },
+  {
+    "id": 5,
+    "name": "Ingrid Palmer",
+    "email": "dennis@email.com",
+    "birthDate": "2000-04-12"
+  }
+]
+</code></pre></div></div>
+
+<h3 id="testing-get-apistudentsbornbetweenfromdatetodate">Testing GET /api/students/bornBetween?fromDate=<yyyy-MM-dd>&amp;toDate=<yyyy-MM-dd></yyyy-MM-dd></yyyy-MM-dd></h3>
+
+<p>Let’s see how it is implemented in our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * Get all students that were born between the desired date range
+ *
+ * @param fromDate
+ * @param toDate
+ * @return the list of students
+ */
+@GetMapping(path = "/students/bornBetween")
+public List&lt;StudentDTO&gt; getAllStudentsThatWereBornBetween(
+  @RequestParam(value = "fromDate") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fromDate,
+  @RequestParam(value = "toDate") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate toDate) {
+
+  List&lt;Student&gt; students = service.findByBirthDateBetween(fromDate, toDate);
+
+  return students.stream().map(student -&gt; convertToDTO(student)).collect(Collectors.toList());
+}
+
+</code></pre></div></div>
+
+<p>So, through ‘@DateTimeFormat’ we are specifying the format that we are expecting.</p>
+
+<p>Possible errors:</p>
+
+<ul>
+  <li>missing ‘fromDate’ parameter;</li>
+  <li>missing ‘toDate’ parameter;</li>
+  <li>‘fromDate’ parameter with an invalid date;</li>
+  <li>‘toDate’ parameter with an invalid date.</li>
+</ul>
+
+<p>Let’s begin with the first possibility, missing ‘fromDate’ parameter:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v "http://localhost:8080/api/students/bornBetween?toDate=2001-03-01"
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:29:42 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+{"errorCode":"Bad Request","errorMessage":"Required LocalDate parameter 'fromDate' is not present"}
+
+</code></pre></div></div>
+
+<p>Now if we miss ‘toDate’ parameter:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v "http://localhost:8080/api/students/bornBetween?fromDate=2001-03-01"
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:29:42 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+{"errorCode":"Bad Request","errorMessage":"Required LocalDate parameter 'toDate' is not present"}
+
+</code></pre></div></div>
+
+<p>When a request parameter is missing, a ‘MissingServletRequestParameterException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when query string parameter is missing
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(MissingServletRequestParameterException.class)
+public ResponseEntity&lt;ExceptionResponse&gt; missingRequestParameter(MissingServletRequestParameterException ex) {
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Bad Request");
+  response.setErrorMessage(ex.getMessage());
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+}
+
+</code></pre></div></div>
+
+<p>Now, if ‘fromDate’ is an invalid date:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v "http://localhost:8080/api/students/bornBetween?fromDate=hahaha&amp;toDate=2001-03-1"
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:38:48 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"'fromDate' should be a valid 'LocalDate' and 'hahaha' isn't"}
+
+</code></pre></div></div>
+
+<p>And if ‘toDate’ is an invalid date:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v "http://localhost:8080/api/students/bornBetween?fromDate=2001-03-01&amp;toDate=hahaha"
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:38:48 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+{"errorCode":"Bad Request","errorMessage":"'toDate' should be a valid 'LocalDate' and 'hahaha' isn't"}
+
+</code></pre></div></div>
+
+<p>When a request parameter fails the expected data type, a ‘MethodArgumentTypeMismatchException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when an error occurs while parsing the value
+ * of a query string parameter
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+public ResponseEntity&lt;ExceptionResponse&gt; handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+  String name = ex.getName();
+  String type = ex.getRequiredType().getSimpleName();
+  Object value = ex.getValue();
+  String message = String.format("'%s' should be a valid '%s' and '%s' isn't", name, type, value);
+
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Bad Request");
+  response.setErrorMessage(message);
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+}
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+
+</code></pre></div></div>
+
+<h3 id="testing-post-apistudent">Testing POST /api/student:</h3>
+
+<p>Let’s see how it is implemented in our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * Creates a student
+ *
+ * @param studentDTO
+ * @return the created student
+ */
+@PostMapping("/student")
+
+public StudentDTO createStudent(@Valid @RequestBody StudentDTO studentDTO) {
+  Student student = convertToEntity(studentDTO);
+
+  return convertToDTO(service.save(student));
+}
+
+</code></pre></div></div>
+
+<p>By using ‘@RequestBody’ annotation we are mapping the <em>HttpRequest</em> body to a transfer or domain object, enabling automatic deserialization of the inbound <em>HttpRequest</em> body onto a Java object. In other words, we are mapping the JSON that we will pass in the request body to a ‘StudentDTO’ object.</p>
+
+<p>By using ‘@Valid’ annotation we are triggering all validation annotations in ‘StudentDTO’.</p>
+
+<p>Take a look at ‘StudentDTO’ class:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package com.tiago.dto;
+
+import java.time.LocalDate;
+
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+/**
+ * DTO with Student information.
+ *
+ * @author Tiago Melo (tiagoharris@gmail.com)
+ *
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class StudentDTO {
+
+  private Integer id;
+
+  @NotBlank(message = "'name' property is missing")
+  private String name;
+
+  @NotBlank(message = "'email' property is missing")
+  @Email
+  private String email;
+
+  @NotNull(message = "'birthDate' property is missing")
+  private LocalDate birthDate;
+
+  // getters and setters ommited
+}
+
+</code></pre></div></div>
+
+<p>See that we are using validation annotations like ‘@NotBlank’ and ‘@NotNull’ that validates the presence of the annotated fields, and ‘@Email’ that validates if the annotated field is a well-formed email address.</p>
+
+<p>Possible errors:</p>
+
+<ul>
+  <li>missing ‘name’ property;</li>
+  <li>missing ‘email’ property;</li>
+  <li>missing ‘birthDate’ property;</li>
+  <li>malformed ‘email’ property;</li>
+  <li>invalid date format in ‘birthDate’ property;</li>
+  <li>missing request body;</li>
+  <li>inserting a Student that is already registered.</li>
+</ul>
+
+<p>Let’s begin with missing ‘name’ property:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"email":"tiago@email.com", "birthDate":"1983-02-01"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:57:36 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"Invalid inputs","errors":["'name' property is missing"]}
+
+</code></pre></div></div>
+
+<p>Now if we miss ‘email’ property:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"name":"tiago", "birthDate":"1983-02-01"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 02:59:57 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"Invalid inputs","errors":["'email' property is missing"]}
+
+</code></pre></div></div>
+
+<p>Now if ‘email’ is a malformed email address:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"name":"tiago", "email":"invalid", "birthDate":"1983-02-01"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:07:41 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"Invalid inputs","errors":["must be a well-formed email address"]}
+
+</code></pre></div></div>
+
+<p>Now if we miss ‘birthDate’ property:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"name":"tiago", "email":"tiago@email.com"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:01:47 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"Invalid inputs","errors":["'birthDate' property is missing"]}
+
+</code></pre></div></div>
+
+<p>As mentioned earlier, the input JSON will be mapped into a ‘StudentDTO’ object. And if any validation annotation in the DTO is violated, like ‘@NotBlank’ or ‘@Email’ for example, a ‘MethodArgumentNotValidException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when inputs are invalid
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity&lt;ExceptionResponse&gt; invalidInput(MethodArgumentNotValidException ex) {
+  BindingResult result = ex.getBindingResult();
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Bad Request");
+  response.setErrorMessage("Invalid inputs");
+  response.setErrors(new ValidationUtil().fromBindingErrors(result));
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+}
+
+</code></pre></div></div>
+
+<p>Now if ‘birthDate’ is an invalid date:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"name":"tiago", "email":"tiago@email.com", "birthDate":"hahaha"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:17:16 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+
+{"errorCode":"Bad Request","errorMessage":"Text 'hahaha' could not be parsed at index 0"}
+
+</code></pre></div></div>
+
+<p>Now if we don’t pass any JSON:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student"
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 400
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:19:21 GMT
+&lt; Connection: close
+&lt;
+* Closing connection 0
+{"errorCode":"Bad Request","errorMessage":"Missing request body"}
+
+</code></pre></div></div>
+
+<p>When an error occurs when parsing the input JSON or if it’s missing, a ‘HttpMessageNotReadableException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when an error occurs when parsing input JSON
+ * or if it's missing
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(HttpMessageNotReadableException.class)
+public ResponseEntity&lt;ExceptionResponse&gt; invalidRequestData(HttpMessageNotReadableException ex) {
+  Throwable mostSpecificCause = ex.getMostSpecificCause();
+
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Bad Request");
+
+  if (mostSpecificCause != null) {
+    String message = mostSpecificCause.getMessage();
+
+    if(message.matches("(.*)Required request body is missing(.*)")) {
+      response.setErrorMessage("Missing request body");
+    } else {
+      response.setErrorMessage(mostSpecificCause.getMessage());
+    }
+  } else {
+    response.setErrorMessage(ex.getMessage());
+  }
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.BAD_REQUEST);
+}
+
+</code></pre></div></div>
+
+<p>Now if we try to insert a Student that is already registered:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X POST "http://localhost:8080/api/student" -d '{"name":"tiago", "email":"email@email.com", "birthDate":"2000-01-01"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 409
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:28:47 GMT
+&lt;
+* Connection #0 to host localhost left intact
+
+{"errorCode":"Conflict","errorMessage":"This student is already registered"}
+
+</code></pre></div></div>
+
+<p>When a constraint is violated in the database, a ‘DataIntegrityViolationException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when the new record conflicts with an
+ * existing record in the database
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(DataIntegrityViolationException.class)
+
+public ResponseEntity&lt;ExceptionResponse&gt; constraintViolation(DataIntegrityViolationException ex) {
+  ExceptionResponse response = new ExceptionResponse();
+
+  response.setErrorCode("Conflict");
+  response.setErrorMessage("This student is already registered");
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.CONFLICT);
+}
+
+</code></pre></div></div>
+
+<h3 id="testing-put-apistudentid">Testing PUT /api/student/{id}</h3>
+
+<p>Let’s see how it is implemented in our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * Updates a student
+ *
+ * @param studentId
+ * @param studentDTO
+ * @return the updated student
+ */
+
+@PutMapping("/student/{id}")
+public StudentDTO updateStudent(@PathVariable(value = "id", required = true) Integer studentId,
+    @Valid @RequestBody StudentDTO studentDTO) {
+  studentDTO.setId(studentId);
+  Student student = convertToEntity(studentDTO);
+
+  return convertToDTO(service.save(student));
+}
+
+</code></pre></div></div>
+
+<p>Possible errors:</p>
+
+<ul>
+  <li>missing ‘name’, ‘email’ and ‘birthDate’ properties: will happen the same as we saw in POST /api/student;</li>
+  <li>malformed ‘email’ property: will happen the same as we saw in POST /api/student;</li>
+  <li>invalid date format in ‘birthDate’ property: will happen the same as we saw in POST /api/student;</li>
+  <li>missing request body: will happen the same as we saw in POST /api/student;</li>
+  <li>no student is found for the given id.</li>
+</ul>
+
+<p>If we try to update an non-existing student:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ curl -v -H "Content-Type: application/json" -X PUT "http://localhost:8080/api/student/666" -d '{"name":"tiago", "email":"email@email.com", "birthDate":"2000-01-01"}'
+
+</code></pre></div></div>
+
+<p>This is the result:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt; HTTP/1.1 404
+&lt; Content-Type: application/json;charset=UTF-8
+&lt; Transfer-Encoding: chunked
+&lt; Date: Fri, 15 Feb 2019 03:38:42 GMT
+&lt;
+* Connection #0 to host localhost left intact
+
+{"errorCode":"Not Found","errorMessage":"Student not found with id: '666'"}
+
+</code></pre></div></div>
+
+<p>When a record is not found in the database, a custom ‘ResourceNotFoundException’ is thrown. And we are handling it in our ‘ExceptionHandlingController’:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * This exception is thrown when a resource is not found
+ *
+ * @param ex
+ * @return {@link ExceptionResponse}
+ */
+@ExceptionHandler(ResourceNotFoundException.class)
+public ResponseEntity&lt;ExceptionResponse&gt; resourceNotFound(ResourceNotFoundException ex) {
+  ExceptionResponse response = new ExceptionResponse();
+  response.setErrorCode("Not Found");
+  response.setErrorMessage(ex.getMessage());
+
+  return new ResponseEntity&lt;ExceptionResponse&gt;(response, HttpStatus.NOT_FOUND);
+}
+
+</code></pre></div></div>
+
+<h3 id="testing-delete-apistudentid">Testing DELETE /api/student/{id}</h3>
+
+<p>Let’s see how it is implemented in our controller:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/**
+ * Deletes a student
+ *
+ * @param studentId
+ * @return 200 OK
+ */
+@DeleteMapping("/student/{id}")
+
+public ResponseEntity&lt;?&gt; deleteStudent(@PathVariable(value = "id") Integer studentId) {
+  service.delete(studentId);
+
+  return ResponseEntity.ok().build();
+}
+
+</code></pre></div></div>
+
+<p>Possible errors:</p>
+
+<ul>
+  <li>no student is found for the given id: will happen the same as we saw in PUT /api/student/{id}</li>
+</ul>
+
+<h2 id="unit-testing">Unit testing</h2>
+
+<p>I like to use <a href="https://www.eclemma.org/jacoco/">JaCoCo</a> to check for test coverage. I usually exclude the main spring boot class.</p>
+
+<p>It can be used as a Maven plugin as follows:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;build&gt;
+   &lt;plugins&gt;
+      &lt;plugin&gt;
+         &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+         &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+      &lt;/plugin&gt;
+      &lt;plugin&gt;
+         &lt;groupId&gt;org.jacoco&lt;/groupId&gt;
+         &lt;artifactId&gt;jacoco-maven-plugin&lt;/artifactId&gt;
+         &lt;version&gt;0.8.3&lt;/version&gt;
+         &lt;configuration&gt;
+            &lt;excludes&gt;
+               &lt;exclude&gt;**/CrudExceptionhandlingExampleApplication.class&lt;/exclude&gt;
+            &lt;/excludes&gt;
+         &lt;/configuration&gt;
+         &lt;executions&gt;
+            &lt;execution&gt;
+               &lt;goals&gt;
+                  &lt;goal&gt;prepare-agent&lt;/goal&gt;
+               &lt;/goals&gt;
+            &lt;/execution&gt;
+            &lt;execution&gt;
+               &lt;id&gt;report&lt;/id&gt;
+               &lt;phase&gt;prepare-package&lt;/phase&gt;
+               &lt;goals&gt;
+                  &lt;goal&gt;report&lt;/goal&gt;
+               &lt;/goals&gt;
+            &lt;/execution&gt;
+         &lt;/executions&gt;
+      &lt;/plugin&gt;
+   &lt;/plugins&gt;
+&lt;/build&gt;
+
+</code></pre></div></div>
+
+<p>To check test coverage, fire up with maven:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crud-exceptionhandling-example$ mvn test &amp;&amp; mvn jacoco:report
+
+</code></pre></div></div>
+
+<p>The report will be available at ‘target/site/jacoco/index.html’:</p>
+
+<p><img src="/assets/images/2019-02-15-e3ae59fd-0d46-40c5-97e9-a5c8791d1145/1550203405893.png" alt="No alt text provided for this image" /></p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Through this simple example we learnt how we can handle exceptions globally with ‘@ControllerAdvice’ annotation. It’s very useful to centralize error handling logic, thus reducing duplicate code and keeping your code cleaner.</p>
+
+<h2 id="download-the-source-code">Download the source code</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/crud-exceptionhandling-example/src/master/">https://bitbucket.org/tiagoharris/crud-exceptionhandling-example/src/master/</a></p>

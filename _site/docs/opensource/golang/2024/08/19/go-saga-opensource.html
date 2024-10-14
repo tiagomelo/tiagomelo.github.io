@@ -1,0 +1,158 @@
+<p><img src="/assets/images/2024-08-19-go-saga-opensource/banner.png" alt="banner" /></p>
+
+<p><em>check out my other open source projects <a href="https://tiagomelo.info/opensource/">here</a></em></p>
+
+<h1 id="go-saga">go-saga</h1>
+
+<p><a href="https://github.com/tiagomelo/go-saga">https://github.com/tiagomelo/go-saga</a></p>
+
+<p>A tiny Go package that provides an implementation of the <a href="https://microservices.io/patterns/data/saga.html">Saga pattern</a> for managing distributed transactions.</p>
+
+<p>The Saga pattern ensures that either all steps of a transaction succeed or all are compensated (rolled back) in case of failure, providing a way to maintain consistency across distributed systems.</p>
+
+<h2 id="features">features</h2>
+
+<ul>
+  <li><strong>Saga Execution</strong>: Execute a series of steps in sequence. If any step fails, the library compensates by rolling back all successfully completed steps.</li>
+  <li><strong>In-Memory State Management</strong>: By default, the state of each step is managed in-memory.</li>
+  <li><strong>Custom State Management</strong>: You can easily extend the library to use an external state manager, such as a database.</li>
+  <li><strong>Flexible Configuration</strong>: Configure the Saga with custom options, including setting a custom StateManager.</li>
+</ul>
+
+<h2 id="available-options">available options</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">WithStateManager</code> sets a custom state manager</li>
+</ul>
+
+<h2 id="installation">installation</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>go get github.com/tiagomelo/go-saga
+</code></pre></div></div>
+
+<h2 id="usage">usage</h2>
+
+<h3 id="with-in-memory-state-management">with in-memory state management</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/tiagomelo/go-saga"
+)
+
+func main() {
+	// Create a new Saga instance with the default in-memory state manager.
+	s := saga.New()
+
+	// Add steps to the Saga.
+	s.AddStep(saga.NewStep("step1",
+		func(ctx context.Context) error {
+			fmt.Println("Executing Step 1")
+			return nil
+		},
+		func(ctx context.Context) error {
+			fmt.Println("Compensating Step 1")
+			return nil
+		},
+	))
+
+	s.AddStep(saga.NewStep("step2",
+		func(ctx context.Context) error {
+			fmt.Println("Executing Step 2")
+			return fmt.Errorf("Step 2 failed")
+		},
+		func(ctx context.Context) error {
+			fmt.Println("Compensating Step 2")
+			return nil
+		},
+	))
+
+	// Execute the Saga.
+	if err := s.Execute(context.Background()); err != nil {
+		fmt.Printf("Saga failed: %v\n", err)
+	} else {
+		fmt.Println("Saga completed successfully")
+	}
+}
+
+</code></pre></div></div>
+
+<h3 id="with-a-custom-state-manager">with a custom state manager</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/yourusername/go-saga"
+)
+
+// CustomStateManager is an example implementation of the StateManager interface.
+// Replace this with your actual custom state manager implementation.
+type CustomStateManager struct {
+	// Implement the necessary fields and methods for your custom state management.
+}
+
+func (c *CustomStateManager) SetStepState(stepIndex int, success bool) error {
+	// Implement logic to store the state of each step.
+	return nil
+}
+
+func (c *CustomStateManager) StepState(stepIndex int) (bool, error) {
+	// Implement logic to retrieve the state of each step.
+	return false, nil
+}
+
+func main() {
+	// Create a custom state manager.
+	stateManager := &amp;CustomStateManager{}
+
+	// Create a new Saga instance with the custom state manager.
+	s := saga.New(saga.WithStateManager(stateManager))
+
+	// Add steps to the Saga.
+	s.AddStep(saga.NewStep("step1",
+		func(ctx context.Context) error {
+			fmt.Println("Executing Step 1")
+			return nil
+		},
+		func(ctx context.Context) error {
+			fmt.Println("Compensating Step 1")
+			return nil
+		},
+	))
+
+	s.AddStep(saga.NewStep("step2",
+		func(ctx context.Context) error {
+			fmt.Println("Executing Step 2")
+			return fmt.Errorf("Step 2 failed")
+		},
+		func(ctx context.Context) error {
+			fmt.Println("Compensating Step 2")
+			return nil
+		},
+	))
+
+	// Execute the Saga.
+	if err := s.Execute(context.Background()); err != nil {
+		fmt.Printf("Saga failed: %v\n", err)
+	} else {
+		fmt.Println("Saga completed successfully")
+	}
+}
+
+</code></pre></div></div>
+
+<h2 id="unit-tests">unit tests</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>make test
+</code></pre></div></div>
+
+<h2 id="unit-test-coverage-report">unit test coverage report</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>make coverage
+</code></pre></div></div>

@@ -1,0 +1,111 @@
+<p><img src="/assets/images/2021-03-18-2b891bc4-66eb-4b72-bb49-2f8cb4cce367/2021-03-18-banner.png" alt="Makefile: properly displaying its usage" /></p>
+
+<p><a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a> is an awesome tool and I use it a lot, mainly in <a href="https://golang.org/">Golang</a> projects. In this quick article we’ll see how to display a useful help message with all targets that are available to be called.</p>
+
+<h2 id="motivation">Motivation</h2>
+
+<p>If you’re using <a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a> as your build tool to your project, chances are that you have several targets in there. Wouldn’t it be nice to properly document its usage, so a new developer coming to your project knows what are the available targets and what are they’re used for?</p>
+
+<h2 id="example">Example</h2>
+
+<p>In real life, I have several targets in a <a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a> for a bunch of things in <a href="https://golang.org/">Golang</a> projects:</p>
+
+<ul>
+  <li>detecting any suspicious, abnormal, or useless code in the application;</li>
+  <li>formatting the source code;</li>
+  <li>setting up the local database;</li>
+  <li>running <a href="https://www.linkedin.com/pulse/go-database-migrations-made-easy-example-using-mysql-tiago-melo/">database migrations</a>;</li>
+  <li>building the app’s binary;</li>
+  <li>running the app;</li>
+  <li>and so on.</li>
+</ul>
+
+<p>So suppose this simple “hello world” app:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hey there!")
+}
+
+</code></pre></div></div>
+
+<p>And this is the <a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a> we’ll use to execute it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.PHONY: help build run
+
+## help: show this help message
+help:
+	@ echo "Usage: make [target]\n"
+	@ sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+
+## go-vet: runs go vet ./...
+go-vet:
+	@ go vet ./...
+
+## go-fmt: runs go fmt ./...
+go-fmt:
+	@ go fmt ./...
+
+## build: builds the app's binary
+build: go-vet go-fmt
+	@ go build main.go
+
+## run: runs the app
+run: build
+
+    @ ./main
+
+</code></pre></div></div>
+
+<p>Let’s see what <em>help</em> target does:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tiago:~/make-help-example$ make help
+
+Usage: make [target]
+
+  help     show this help message
+
+  go-vet   runs go vet ./...
+
+  go-fmt   runs go fmt ./...
+
+  build    builds the app's binary
+
+  run      runs the app
+
+</code></pre></div></div>
+
+<p>Pretty cool, isn’t it? Now that we know what are the targets and what are they used for, let’s run the app:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tiago:~/make-help-example$ make run
+
+Hey there!
+
+</code></pre></div></div>
+
+<h3 id="explaining-it">Explaining it</h3>
+
+<p>For each target, just above it, we write a string that contains both target name and what it’s used for:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## &lt;target_name&gt;: brief explanation of what it does
+
+</code></pre></div></div>
+
+<p>Next, as we can see <a href="https://ftp.gnu.org/old-gnu/Manuals/make-3.80/html_node/make_17.html">here</a>, the variable MAKEFILE_LIST contains the list of Makefiles currently loaded or included. In our case, it contains all the content of our <a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a>. Then, we’ll use both <a href="https://en.wikipedia.org/wiki/Sed">sed</a> and <a href="https://man7.org/linux/man-pages/man1/column.1.html">column</a> to format the strings:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+
+</code></pre></div></div>
+
+<ol>
+  <li>using <a href="https://en.wikipedia.org/wiki/Sed">sed</a> to remove ‘##’ characters;</li>
+  <li>using <a href="https://man7.org/linux/man-pages/man1/column.1.html">column</a> to remove “:” and format a table;</li>
+  <li>using <a href="https://en.wikipedia.org/wiki/Sed">sed</a> again to ident the targets with one space.</li>
+</ol>
+
+<h2 id="conclusion"><strong>Conclusion</strong></h2>
+
+<p>In this quick article we saw how we can use tools like <a href="https://en.wikipedia.org/wiki/Sed">sed</a> and <a href="https://man7.org/linux/man-pages/man1/column.1.html">column</a> to build a help for our <a href="https://en.wikipedia.org/wiki/Makefile">Makefile</a>.</p>

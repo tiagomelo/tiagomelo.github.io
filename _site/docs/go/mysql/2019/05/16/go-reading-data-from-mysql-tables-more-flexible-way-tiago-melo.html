@@ -1,0 +1,341 @@
+<p><img src="/assets/images/2019-05-16-e3187e8a-1fcb-494a-ae2b-6074ebcbba68/2019-05-16-banner.png" alt="Go: reading data from MySQL tables in a more flexible way" /></p>
+
+<p><a href="https://www.linkedin.com/pulse/go-exporting-millions-records-from-mysql-table-csv-file-tiago-melo/">In a previous article</a>, we read data from a given <a href="https://dev.mysql.com/">MySQL</a> table and exported it to a <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV file</a>. In this article, I’ll show a more generic approach to do it.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>What if we wanted to write a <a href="https://golang.org/">Go</a> script that takes a table name as an argument and export its data to a <a href="https://pt.wikipedia.org/wiki/Comma-separated_values">CSV file</a>?</p>
+
+<p>Let’s recap how I did it on the <a href="https://www.linkedin.com/pulse/go-exporting-millions-records-from-mysql-table-csv-file-tiago-melo/">previous article</a>, focusing on the data retrieval from the <a href="https://dev.mysql.com/">MySQL</a> table:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>func main() {
+	// these are the variables that will hold the data for each row in the table
+	var (
+		id           int
+		name         string
+		email        string
+		phone_number string
+		birth_date   time.Time
+	)
+
+
+	db, err := sql.Open("mysql", "root:@/spring_batch_example?parseTime=true")
+
+	defer db.Close()
+
+	checkError("Error getting a handle to the database", err)
+
+	err = db.Ping()
+
+	checkError("Error establishing a connection to the database", err)
+
+	rows, err := db.Query("SELECT * FROM user")
+
+	defer rows.Close()
+
+	checkError("Error creating the query", err)
+
+	// this is the slice that will be appended with rows from the table
+	s := make([][]string, 0)
+
+	// now let's loop through the table lines and append them to the slice declared above
+	for rows.Next() {
+		// read the row on the table; it has five fields, and here we are
+		// assigning them to the variables declared above
+		err := rows.Scan(&amp;id, &amp;name, &amp;email, &amp;phone_number, &amp;birth_date)
+
+		checkError("Error reading rows from the table", err)
+
+		// appending the row data to the slice
+		s = append(s, []string{strconv.Itoa(id), name, email, phone_number, birth_date.String()})
+	}
+
+	err = rows.Err()
+
+	checkError("Error reading rows from the table", err)
+
+}
+
+</code></pre></div></div>
+
+<p>The interesting part to note is that in this particular example I’m creating some variables to hold the columns that I want to read from the table:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>err := rows.Scan(&amp;id, &amp;name, &amp;email, &amp;phone_number, &amp;birth_date)
+
+</code></pre></div></div>
+
+<p>Although it works well, it’s a solution tailored to a <em>specific</em> <em>table</em>. Let’s see a more generic approach.</p>
+
+<h2 id="the-tables">The tables</h2>
+
+<p>Suppose we have a database called <em>csv_example</em> with two tables, <em>user</em> and <em>book:</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE  `user` (
+  `id` int(11) NOT NULL auto_increment,
+  `name` varchar(50) NOT NULL,
+  `email` varchar(50) NOT NULL,
+
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `book` (
+  `id` int(11) NOT NULL auto_increment,
+  `title` varchar(50) NOT NULL,
+  `isbn` varchar(50) NOT NULL,
+
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+INSERT INTO user (name,email) VALUES ('Bruce Dickinson', 'bruce@ironmaiden.com');
+INSERT INTO user (name,email) VALUES ('Steve Harris', 'steve@ironmaiden.com');
+INSERT INTO user (name,email) VALUES ('Dave Murray', 'dave@ironmaiden.com');
+INSERT INTO user (name,email) VALUES ('Janick Gers', 'janick@ironmaiden.com');
+INSERT INTO user (name,email) VALUES ('Adrian Smith', 'adrian@ironmaiden.com');
+INSERT INTO user (name,email) VALUES ('Nicko Mcbrain', 'nicko@ironmaiden.com');
+
+INSERT INTO book (title,isbn) VALUES ('Book 1', 'ISBN1');
+INSERT INTO book (title,isbn) VALUES ('Book 2', 'ISBN2');
+INSERT INTO book (title,isbn) VALUES ('Book 3', 'ISBN3');
+INSERT INTO book (title,isbn) VALUES ('Book 4', 'ISBN4');
+
+</code></pre></div></div>
+
+<h2 id="the-code">The code</h2>
+
+<p>This is our <a href="https://golang.org/">Go</a> script. I’ve commented on the interesting parts so we can understand what’s going on:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>//  This Go script exports a given MySQL table data to a CSV file.
+//
+//  author: Tiago Melo (tiagoharris@gmail.com)
+
+package main
+
+import (
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"fmt"
+	"strings"
+	"encoding/csv"
+	"os"
+	"path/filepath"
+)
+
+// helper function to handle errors
+func checkError(message string, err error) {
+	if err != nil {
+		log.Fatal(message, err)
+	}
+}
+
+// reads all records from a table
+// returns a bidimensional array with the data read
+func getLinesFromTable(tableName string) [][]string {
+	// this is the slice that will be appended with rows from the table
+	lines := make([][]string, 0)
+
+	// sql.Open does not return a connection. It just returns a handle to the database.
+	db, err := sql.Open("mysql", "root:@/csv_example")
+
+	// A defer statement pushes a function call onto a list.
+	// The list of saved calls is executed after the surrounding function returns.
+	// Defer is commonly used to simplify functions that perform various clean-up actions.
+	defer db.Close()
+
+	checkError("Error getting a handle to the database", err)
+
+	// Now it's time to validate the Data Source Name (DSN) to check if the connection
+	// can be correctly established.
+	err = db.Ping()
+
+	checkError("Error establishing a connection to the database", err)
+
+	rows, err := db.Query("SELECT * FROM " + tableName)
+
+	defer rows.Close()
+
+	checkError("Error creating the query", err)
+
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		checkError("Error getting columns from table", err)
+	}
+
+	// Make a slice for the values
+	values := make([]sql.RawBytes, len(columns))
+
+	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+	// references into such a slice
+	// See http://code.google.com/p/go-wiki/wiki/InterfaceSlice for details
+	scanArgs := make([]interface{}, len(values))
+	for i := range values {
+		scanArgs[i] = &amp;values[i]
+	}
+
+	// now let's loop through the table lines and append them to the slice declared above
+	for rows.Next() {
+		// read the row on the table
+		// each column value will be stored in the slice
+		err = rows.Scan(scanArgs...)
+
+		checkError("Error scanning rows from table", err)
+
+		var value string
+		var line [] string
+
+		for _, col := range values {
+			// Here we can check if the value is nil (NULL value)
+			if col == nil {
+				value = "NULL"
+			} else {
+				value = string(col)
+				line = append(line, value)
+			}
+		}
+
+		lines = append(lines, line)
+	}
+
+	checkError("Error scanning rows from table", rows.Err())
+
+	return lines
+}
+
+// writes all data from a bidimensional array into a csv file
+// returns the absolute path of the written file
+func writeLinesFromTableName(lines * [][]string, tableName string) string {
+	fileName := tableName + ".csv"
+
+	file, err := os.Create(fileName)
+
+	defer file.Close()
+
+	checkError("Error creating the file", err)
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, value := range *lines {
+		err := writer.Write(value)
+
+		checkError("Error writing line to the file", err)
+	}
+
+	filePath, err := filepath.Abs(filepath.Dir(file.Name()))
+
+	checkError("Error getting file path", err)
+
+	filePath += "/" + fileName
+
+	return filePath
+}
+
+func exportFromTable(tableName string) {
+	fmt.Printf("\nExporting data from table \"%s\" ...", tableName)
+
+	lines := getLinesFromTable(tableName)
+	filePath := writeLinesFromTableName(&amp;lines, tableName)
+
+	fmt.Println("\nGenerated file:", filePath)
+}
+
+func main() {
+	var tableName string
+
+	fmt.Println("Enter the desired table name: ")
+
+	fmt.Scan(&amp;tableName)
+
+	switch strings.ToLower(tableName) {
+	case "user":
+		exportFromTable(tableName)
+	case "book":
+		exportFromTable(tableName)
+	default:
+		fmt.Println("no such table:", tableName)
+	}
+}
+
+</code></pre></div></div>
+
+<p>This is the most interesting part for us:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Get column names
+columns, err := rows.Columns()
+if err != nil {
+	checkError("Error getting columns from table", err)
+}
+
+// Make a slice for the values
+values := make([]sql.RawBytes, len(columns))
+
+// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+// references into such a slice
+// See http://code.google.com/p/go-wiki/wiki/InterfaceSlice for details
+scanArgs := make([]interface{}, len(values))
+for i := range values {
+	scanArgs[i] = &amp;values[i]
+}
+
+// now let's loop through the table lines and append them to the slice declared above
+for rows.Next() {
+	// read the row on the table
+	// each column value will be stored in the slice
+	err = rows.Scan(scanArgs...)
+
+    // ommited
+}
+
+</code></pre></div></div>
+
+<p>Taking the <em>user</em> table as an example, let’s dig in:</p>
+
+<ol>
+  <li>get all the column names from the table - store them in an array called <em>columns -</em> in this case, it will be: [id, name, email]</li>
+  <li>create a <a href="https://tour.golang.org/moretypes/7">slice</a> called <em>values</em> with the same size of <em>columns</em> to hold the corresponding column values - it’s type is <a href="https://golang.org/pkg/database/sql/#RawBytes">sql.RawBytes</a></li>
+  <li>create another <a href="https://tour.golang.org/moretypes/7">slice</a> called <em>scanArgs</em> of type <a href="https://tour.golang.org/methods/14">interface{}</a> and initialize it with references of the <em>values</em> <a href="https://tour.golang.org/moretypes/7">slice</a></li>
+  <li>pass <em>scanArgs</em> to <a href="https://golang.org/pkg/database/sql/#Row.Scan">rows.Scan</a> with ‘…’, since it’s a <a href="https://gobyexample.com/variadic-functions">variadic function</a></li>
+</ol>
+
+<h2 id="its-show-time">It’s show time!</h2>
+
+<p>Let’s run it.</p>
+
+<p>First, let’s export data from <em>user</em> table:</p>
+
+<p><img src="/assets/images/2019-05-16-e3187e8a-1fcb-494a-ae2b-6074ebcbba68/1558028925186.png" alt="No alt text provided for this image" /></p>
+
+<p>This is the <em>user.csv</em> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1,Bruce Dickinson,bruce@ironmaiden.com
+2,Steve Harris,steve@ironmaiden.com
+3,Dave Murray,dave@ironmaiden.com
+4,Janick Gers,janick@ironmaiden.com
+5,Adrian Smith,adrian@ironmaiden.com
+6,Nicko Mcbrain,nicko@ironmaiden.com
+
+</code></pre></div></div>
+
+<p>Now let’s export data from <em>book</em> table:</p>
+
+<p><img src="/assets/images/2019-05-16-e3187e8a-1fcb-494a-ae2b-6074ebcbba68/1558029132741.png" alt="No alt text provided for this image" /></p>
+
+<p>This is the <em>book.csv</em> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1,Book 1,ISBN1
+2,Book 2,ISBN2
+3,Book 3,ISBN3
+4,Book 4,ISBN4
+
+</code></pre></div></div>
+
+<p>Pretty cool, isn’t it?</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Through this simple example, we learned how to read data from a given <a href="https://dev.mysql.com/">MySQL</a> in a more flexible way, without having to specify all it’s fields to a <a href="https://golang.org/pkg/database/sql/#Row.Scan">rows.Scan</a> call. We did it querying up the table’s columns and creating auxiliary <a href="https://tour.golang.org/moretypes/7">slices</a> to hold the data.</p>
+
+<h2 id="download-the-source">Download the source</h2>
+
+<p>Here: <a href="https://bitbucket.org/tiagoharris/exporting-to-csv-with-go-generic/src/master/">https://bitbucket.org/tiagoharris/exporting-to-csv-with-go-generic/src/master/</a></p>
