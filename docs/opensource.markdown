@@ -6,6 +6,10 @@ permalink: /opensource/
 
 Some of my open source projects:
 
+[go-spinner](https://github.com/tiagomelo/go-spinner): A simple and customizable spinner component for CLI applications written in Go.
+
+![go-spinner](/assets/images/opensourceprojects/go-spinner/go-spinner.png)
+
 [go-grpc-bin](https://github.com/tiagomelo/go-grpc-bin): gRPC request & response service.
 
 ![go-grpc-bin](/assets/images/opensourceprojects/go-grpc-bin/go-grpc-bin.png)
