@@ -4,7 +4,9 @@ title: Open source
 permalink: /opensource/
 ---
 
-Some of my open source projects:
+[go-retry](https://github.com/tiagomelo/go-retry): A robust, flexible Go package that provides configurable retry strategies for functions.
+
+![go-retry](/assets/images/opensourceprojects/go-retry/go-retry.png)
 
 [go-spinner](https://github.com/tiagomelo/go-spinner): A simple and customizable spinner component for CLI applications written in Go.
 
