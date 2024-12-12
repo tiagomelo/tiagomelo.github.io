@@ -14,8 +14,6 @@ _check out my other open source projects [here](https://tiagomelo.info/opensourc
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/tiagomelo/go-retry.svg)](https://pkg.go.dev/github.com/tiagomelo/go-retry)
 
-![go-retry](./go-retry.png)
-
 A robust, flexible Go package that provides configurable retry strategies for functions. This package helps you implement retries with different backoff strategies, including handling fatal errors that immediately stop retries.
 
 ## Features
