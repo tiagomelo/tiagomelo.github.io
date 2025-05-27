@@ -4,6 +4,10 @@ title: Open source
 permalink: /opensource/
 ---
 
+[go-bytefy](https://github.com/tiagomelo/go-bytefy): A simple utility to encode a file (or any other data) into a Go byte slice.
+
+![go-bytefy](/assets/images/opensourceprojects/go-bytefy/go-bytefy-logo.png)
+
 [go-retry](https://github.com/tiagomelo/go-retry): A robust, flexible Go package that provides configurable retry strategies for functions.
 
 ![go-retry](/assets/images/opensourceprojects/go-retry/go-retry.png)
