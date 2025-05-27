@@ -12,7 +12,7 @@ _check out my other open source projects [here](https://tiagomelo.info/opensourc
 
 # go-bytefy
 
-https://github.com/tiagomelo/go-bytefy
+[https://github.com/tiagomelo/go-bytefy](https://github.com/tiagomelo/go-bytefy)
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/tiagomelo/go-bytefy.svg)](https://pkg.go.dev/github.com/tiagomelo/go-bytefy)
 
