@@ -4,6 +4,10 @@ title: Open source
 permalink: /opensource/
 ---
 
+[MacOSDMGCreator](https://github.com/tiagomelo/macos-dmg-creator): A macOS DMG package builder with a native GUI written using [Fyne](https://fyne.io) and CLI support.
+
+![MacOSDMGCreator](/assets/images/desktopApps/macOsDmgCreator/icon.png)
+
 [go-bytefy](https://github.com/tiagomelo/go-bytefy): A simple utility to encode a file (or any other data) into a Go byte slice.
 
 ![go-bytefy](/assets/images/opensourceprojects/go-bytefy/go-bytefy-logo.png)
