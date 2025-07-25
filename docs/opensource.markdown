@@ -4,6 +4,10 @@ title: Open source
 permalink: /opensource/
 ---
 
+[ImageResizer](https://github.com/tiagomelo/image-resizer): An image resize application build in Go using [Fyne](https://fyne.io).
+
+![ImageResizer](/assets/images/desktopApps/imageResizer/icon.png)
+
 [MacOSDMGCreator](https://github.com/tiagomelo/macos-dmg-creator): A macOS DMG package builder with a native GUI written using [Fyne](https://fyne.io) and CLI support.
 
 ![MacOSDMGCreator](/assets/images/desktopApps/macOsDmgCreator/icon.png)
