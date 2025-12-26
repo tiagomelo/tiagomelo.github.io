@@ -6,6 +6,8 @@ categories: git
 image: "/assets/images/2025-12-26-gitattributes/banner.png"
 ---
 
+![banner](/assets/images/2025-12-26-gitattributes/banner.png)
+
 Most teams are familiar with `.gitignore`, but far fewer make deliberate use of [`.gitattributes`](https://git-scm.com/docs/gitattributes).
 This is unfortunate, because [`.gitattributes`](https://git-scm.com/docs/gitattributes) plays a critical role in **how Git interprets files**, not merely whether they are tracked.
 
