@@ -4,6 +4,10 @@ title: Open source
 permalink: /opensource/
 ---
 
+[vid2mp3](https://github.com/tiagomelo/vid2mp3): A simple command-line utility to extract audio from video files and convert it to MP3 format.
+
+![vid2mp3](/assets/images/opensourceprojects/vid2mp3/vid2mp3.png)
+
 [ImageResizer](https://github.com/tiagomelo/image-resizer): An image resize application build in Go using [Fyne](https://fyne.io).
 
 ![ImageResizer](/assets/images/desktopApps/imageResizer/icon.png)

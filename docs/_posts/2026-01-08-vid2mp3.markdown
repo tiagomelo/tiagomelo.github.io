@@ -1,0 +1,166 @@
+---
+layout: post
+title:  "Open source project: vid2mp3"
+date:   2026-01-08 13:40:15 -0000
+categories: opensource golang
+image: "/assets/images/2026-01-08-vid2mp3/banner.png"
+---
+
+![banner](/assets/images/2026-01-08-vid2mp3/banner.png)
+
+_check out my other open source projects [here](https://tiagomelo.info/opensource/)_
+
+# vid2mp3
+
+A simple command-line utility to extract audio from video files and convert it to MP3 format.
+
+`vid2mp3` is designed to be small, dependency-light, and easy to integrate into scripts, Makefiles, and automation workflows.
+
+---
+
+## features
+
+* Convert video files to MP3
+* Supports common video formats (via [`ffmpeg`](https://www.ffmpeg.org/))
+* Simple CLI interface
+* Suitable for batch processing
+* No [Go](https://go.dev) runtime dependencies at execution time
+
+---
+
+## requirements
+
+* [**ffmpeg**](https://www.ffmpeg.org/) must be installed and available on `$PATH`
+
+Verify installation:
+
+```bash
+ffmpeg -version
+```
+
+---
+
+## installation
+
+### using `go install`
+
+```bash
+go install github.com/tiagomelo/vid2mp3/cmd/vid2mp3@latest
+```
+
+The binary will be installed into:
+
+```bash
+$(go env GOPATH)/bin
+```
+
+Make sure it is on your `PATH`:
+
+```bash
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+
+---
+
+## usage
+
+### basic usage
+
+```bash
+vid2mp3 input.mp4
+```
+
+This generates:
+
+```text
+input.mp3
+```
+
+in the same directory.
+
+---
+
+### specify output file
+
+```bash
+vid2mp3 -o output.mp3 input.mp4
+```
+
+---
+
+### batch conversion
+
+```bash
+for f in *.mp4; do
+  vid2mp3 "$f"
+done
+```
+
+---
+
+## examples
+
+Convert a video downloaded from the web:
+
+```bash
+vid2mp3 lecture.mp4
+```
+
+Convert and rename output:
+
+```bash
+vid2mp3 -o podcast.mp3 recording.mkv
+```
+
+Use inside a Makefile:
+
+```make
+extract-audio:
+	vid2mp3 assets/video.mp4
+```
+
+---
+
+## how it works
+
+Internally, `vid2mp3` invokes [`ffmpeg`](https://www.ffmpeg.org/) with the appropriate arguments to:
+
+* strip video streams
+* extract audio
+* encode it as MP3
+
+This keeps the implementation simple and reliable by relying on a proven media tool.
+
+---
+
+## error handling
+
+* Fails fast if [`ffmpeg`](https://www.ffmpeg.org/) is not available
+* Propagates [`ffmpeg`](https://www.ffmpeg.org/) errors directly to `stderr`
+* Returns non-zero exit codes on failure (script-friendly)
+
+---
+
+## development
+
+### run locally
+
+```bash
+go run ./cmd/vid2mp3 input.mp4
+```
+
+---
+
+### unit tests
+
+```bash
+make test
+```
+
+---
+
+### unit tests coverage report
+
+```bash
+make coverage
+```
