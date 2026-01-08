@@ -146,7 +146,7 @@ This keeps the implementation simple and reliable by relying on a proven media t
 ### run locally
 
 ```bash
-go run ./cmd/vid2mp3 input.mp4
+go run ./cmd/vid2mp3/vid2mp3.go input.mp4
 ```
 
 ---
