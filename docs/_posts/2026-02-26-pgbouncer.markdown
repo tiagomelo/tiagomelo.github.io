@@ -338,7 +338,7 @@ other services.
 
 #### What we observed
 
-##### Connections under pressure
+**Connections under pressure**
 
 The **Connections Used** gauge peaked at **83%** — meaning ~83 out of 100 connection slots were
 consumed by client activity alone. With [`postgres_exporter`](https://github.com/prometheus-community/postgres_exporter), [PgBouncer](https://www.pgbouncer.org/), and [Postgres](https://www.postgresql.org/) internal
@@ -357,7 +357,7 @@ lifecycle management directly, with no buffering layer in between.
 
 ![PSQL connections by state ](/assets/images/2026-02-26-pgbouncer/psql/PSQL_benchmark-1772026782107.png)
 
-##### Throughput
+**Throughput**
 
 TPS started around 5,100 at the beginning of the benchmark, climbed steadily to a peak of
 approximately **6,040** around the 2-minute mark, then began degrading. By the end of the
@@ -367,7 +367,7 @@ connections compete for [Postgres](https://www.postgresql.org/) resources, throu
 
 ![PSQL TPS](/assets/images/2026-02-26-pgbouncer/psql/PSQL_benchmark-1772026830111.png)
 
-##### Memory pressure
+**Memory pressure**
 
 **Buffers Allocated** rose sharply from ~5.6s at the start to a sustained plateau around
 **8.4s** — a ~50% increase. This reflects Postgres constantly allocating shared buffer space to
@@ -399,7 +399,7 @@ client connections are served through a maximum of 25 real [Postgres](https://ww
 
 #### What we observed
 
-##### Connection multiplexing
+**Connection multiplexing**
 
 The **Server Connections Pool** panel is where the story becomes undeniable. The yellow line —
 clients waiting — hovered consistently around **170**, representing the 200 [pgbench](https://www.postgresql.org/docs/current/pgbench.html) clients minus
@@ -420,7 +420,7 @@ small, controlled pool [PgBouncer](https://www.pgbouncer.org/) presented to it.
 
 ![PGBouncer PSQL connections by state](/assets/images/2026-02-26-pgbouncer/pgbouncer/PgBouncer_benchmark-1772027646142.png)
 
-##### Connections Used
+**Connections used**
 
 The **Connections Used** gauge held at a steady **28%** throughout the entire benchmark — the
 same reading seen when the stack was idle. With `default_pool_size=25`, [PgBouncer](https://www.pgbouncer.org/) consumed only
@@ -430,7 +430,7 @@ count.
 
 ![PGBouncer PSQL connections used](/assets/images/2026-02-26-pgbouncer/pgbouncer/PgBouncer_benchmark-1772027657983.png)
 
-##### Throughput
+**Throughput**
 
 TPS started around **3,850** and showed a gradual decline over the 5-minute window, settling
 around **3,150-3,500** by the end. This is lower than the direct benchmark's peak of ~6,040,
@@ -446,7 +446,7 @@ control throughout.
 
 ![PGBench TPS](/assets/images/2026-02-26-pgbouncer/pgbouncer/PgBouncer_benchmark-1772027703195.png)
 
-##### Memory pressure
+**Memory pressure**
 
 **Buffers Allocated** dropped significantly compared to the direct benchmark. Starting around
 5,370 at the beginning, it declined steadily to a floor of ~4,400 — roughly **13-18% lower**
