@@ -4,6 +4,10 @@ title: Open source
 permalink: /opensource/
 ---
 
+[go-money](https://github.com/tiagomelo/go-money): A simple, idiomatic Go library for working with monetary values.
+
+![go-money](/assets/images/opensourceprojects/go-money/go-money.png)
+
 [vid2mp3](https://github.com/tiagomelo/vid2mp3): A simple command-line utility to extract audio from video files and convert it to MP3 format.
 
 ![vid2mp3](/assets/images/opensourceprojects/vid2mp3/vid2mp3.png)

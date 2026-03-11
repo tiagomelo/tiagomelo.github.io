@@ -1,0 +1,244 @@
+---
+layout: post
+title:  "Open source project: go-money"
+date:   2026-03-11 14:12:58 -0000
+categories: opensource golang
+image: "/assets/images/2026-03-11-go-money/banner.png"
+---
+
+![banner](/assets/images/2026-03-11-go-money/banner.png)
+
+_check out my other open source projects [here](https://tiagomelo.info/opensource/)_
+
+# go-money
+
+A simple, idiomatic Go library for working with monetary values, implementing [Martin Fowler's Money pattern](https://martinfowler.com/eaaCatalog/money.html).
+
+Amounts are stored as `int64` minor units (e.g. cents) to avoid floating-point precision issues. All operations return new values — no mutation, no pointers, no panics.
+
+## Fowler's Money pattern compliance
+
+This library implements [Martin Fowler's Money pattern](https://martinfowler.com/eaaCatalog/money.html) from *Patterns of Enterprise Application Architecture*:
+
+| Requirement | Implementation |
+|---|---|
+| Store amount as integer minor units | `int64` (cents, pence, etc.) |
+| Pair amount with currency | `Money` struct holds both |
+| Currency-aware arithmetic | `Add`, `Subtract` return `error` on mismatch |
+| Multiplication | `Multiply(int)` |
+| Allocation without loss | `Allocate` and `Split` distribute remainders as single units |
+| Value Object equality | `Equals(Money) (bool, error)` |
+| Comparison | `GreaterThan`, `LessThan` return `(bool, error)` |
+| Value semantics | `Money` is a plain struct — no pointers, all operations return new values |
+
+## Installation
+
+```bash
+go get github.com/tiagomelo/go-money
+```
+
+## Usage
+
+### Creating a monetary value
+
+Amounts are in minor units (cents, pence, etc.).
+
+```go
+price := money.NewMoney(1999, money.USD) // $19.99
+vat   := money.NewMoney(400,  money.EUR) // €4.00
+```
+
+### Arithmetic
+
+```go
+a := money.NewMoney(1000, money.USD)
+b := money.NewMoney(250,  money.USD)
+
+sum, err := a.Add(b)       // $12.50
+diff, err := a.Subtract(b) // $7.50
+doubled := a.Multiply(2)   // $20.00
+```
+
+Operations on different currencies return an error:
+
+```go
+usd := money.NewMoney(100, money.USD)
+eur := money.NewMoney(100, money.EUR)
+
+_, err := usd.Add(eur) // err: "cannot add EUR to USD"
+```
+
+### Comparison
+
+```go
+a := money.NewMoney(1000, money.USD)
+b := money.NewMoney(500,  money.USD)
+
+eq,  err := a.Equals(b)      // false, nil
+gt,  err := a.GreaterThan(b) // true,  nil
+lt,  err := a.LessThan(b)    // false, nil
+
+same := a.SameCurrency(b) // true
+```
+
+Comparing different currencies returns an error:
+
+```go
+usd := money.NewMoney(100, money.USD)
+eur := money.NewMoney(100, money.EUR)
+
+_, err := usd.GreaterThan(eur) // err: "currency mismatch: USD and EUR"
+```
+
+### Absolute value
+
+```go
+m := money.NewMoney(-500, money.USD)
+abs := m.Absolute() // $5.00
+```
+
+### Splitting
+
+Divides an amount into `n` equal parts. Any remainder is distributed one unit at a time to the first parts, ensuring no value is lost.
+
+```go
+m := money.NewMoney(101, money.USD) // $1.01
+
+parts, err := m.Split(4)
+// parts[0] = $0.26  (gets the leftover cent)
+// parts[1] = $0.25
+// parts[2] = $0.25
+// parts[3] = $0.25
+// sum = $1.01 ✓
+```
+
+### Allocation
+
+Distributes an amount according to ratios. Remainder is distributed one unit at a time to the first allocations, ensuring no value is lost.
+
+```go
+m := money.NewMoney(100, money.USD) // $1.00
+
+// 2:1 split
+parts, err := m.Allocate(2, 1)
+// parts[0] = $0.67
+// parts[1] = $0.33
+// sum = $1.00 ✓
+
+// Equal three-way split with a remainder
+m2 := money.NewMoney(101, money.USD) // $1.01
+parts, err = m2.Allocate(1, 1, 1)
+// parts[0] = $0.34  (gets the leftover cent)
+// parts[1] = $0.34
+// parts[2] = $0.33
+// sum = $1.01 ✓
+```
+
+### Display
+
+```go
+m := money.NewMoney(123456, money.USD)
+fmt.Println(m.Display())        // $1,234.56
+fmt.Println(m.AsMajorUnits())  // 1234.56 (float64, display only)
+```
+
+`AsMajorUnits` returns a `float64` and should never be used for arithmetic.
+
+### JSON
+
+`Money` implements `json.Marshaler` and `json.Unmarshaler`. The amount is serialized in minor units.
+
+```go
+m := money.NewMoney(1999, money.USD)
+
+b, err := json.Marshal(m)
+// {"amount":1999,"currency":"USD"}
+
+var got money.Money
+err = json.Unmarshal(b, &got)
+// got == m
+
+// Unknown currency codes are rejected:
+err = json.Unmarshal([]byte(`{"amount":100,"currency":"XYZ"}`), &got)
+// err: "unknown currency code: XYZ"
+```
+
+### Database storage
+
+`Money` and `Currency` both implement `driver.Valuer` and `sql.Scanner`, so they work directly with `database/sql` and any compatible ORM.
+
+The recommended schema stores amount and currency in **two separate columns**:
+
+```sql
+CREATE TABLE products (
+    id            SERIAL PRIMARY KEY,
+    price_amount  BIGINT      NOT NULL,  -- minor units (e.g. cents)
+    price_currency VARCHAR(3) NOT NULL   -- ISO 4217 code (e.g. 'USD')
+);
+```
+
+**Writing:**
+
+```go
+m := money.NewMoney(1999, money.USD) // $19.99
+
+amountVal, _ := m.Value()           // int64(1999)
+currencyVal, _ := m.Currency.Value() // "USD"
+
+db.Exec(
+    `INSERT INTO products (price_amount, price_currency) VALUES ($1, $2)`,
+    amountVal, currencyVal,
+)
+```
+
+**Reading:**
+
+```go
+var m money.Money
+
+row := db.QueryRow(`SELECT price_amount, price_currency FROM products WHERE id = $1`, id)
+err := row.Scan(&m.Amount, &m.Currency)
+// m is fully reconstructed, including all currency formatting metadata
+```
+
+`Currency.Scan` validates the code and returns an error for unknown values:
+
+```go
+var c money.Currency
+err := c.Scan("XYZ") // err: "unknown currency code: XYZ"
+```
+
+### Supported currencies
+
+All [ISO 4217 currencies](https://en.wikipedia.org/wiki/ISO_4217) are supported as package-level variables:
+
+```go
+money.USD  money.EUR  money.GBP  money.JPY
+money.BRL  money.CAD  money.AUD  money.CHF
+// ... and 150+ more
+```
+
+## Design notes
+
+- **Minor units**: amounts are always `int64` minor units. `NewMoney(100, money.USD)` is $1.00, not $100.
+- **Value semantics**: `Money` is a plain struct, not a pointer. Assigning it copies it.
+- **No panics**: all error conditions (currency mismatch, invalid split/allocate arguments, unknown currency) return `error`.
+- **Type-safe currencies**: currency codes are a dedicated unexported type; only the predefined package variables (`money.USD`, `money.EUR`, etc.) are valid — you cannot pass an arbitrary string.
+- **Remainder-safe arithmetic**: `Split` and `Allocate` guarantee that `sum(parts) == original`, distributing any remainder as single units to the first elements.
+- **Database-ready**: `Money` and `Currency` implement `driver.Valuer` and `sql.Scanner`. Store them as two columns — amount (`BIGINT`) and currency code (`VARCHAR(3)`). Unknown currency codes are rejected on scan.
+
+## Running tests
+
+```bash
+make test
+```
+
+With coverage report:
+
+```bash
+make coverage
+```
+
+## License
+
+MIT.
