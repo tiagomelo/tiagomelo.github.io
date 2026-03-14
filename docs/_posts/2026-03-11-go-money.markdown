@@ -12,6 +12,8 @@ _check out my other open source projects [here](https://tiagomelo.info/opensourc
 
 # go-money
 
+[https://github.com/tiagomelo/go-money](https://github.com/tiagomelo/go-money)
+
 A simple, idiomatic Go library for working with monetary values, implementing [Martin Fowler's Money pattern](https://martinfowler.com/eaaCatalog/money.html).
 
 Amounts are stored as `int64` minor units (e.g. cents) to avoid floating-point precision issues. All operations return new values — no mutation, no pointers, no panics.
