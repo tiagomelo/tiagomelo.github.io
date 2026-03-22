@@ -4,8 +4,6 @@ title: Privacy Policy
 permalink: /photo-puzzle/privacy
 ---
 
-# Privacy Policy
-
 *Last updated: March 22, 2026*
 
 Tiago Melo ("we", "our", or "us") built Photo Puzzle ("the App") as a commercial application. This page informs you of our policies regarding the collection, use, and disclosure of information when you use the App.
