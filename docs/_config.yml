@@ -29,6 +29,11 @@ linkedin_username: tiagocmelo
 
 # Build settings
 theme: minima
+header_pages:
+  - about.markdown
+  - desktopApps.markdown
+  - dockerImages.markdown
+  - opensource.markdown
 plugins:
   - jekyll-feed
 
