@@ -8,7 +8,13 @@
   <link rel="icon" type="image/svg+xml" href="{{ "/assets/images/favicon.svg" | relative_url }}" />
   <link rel="shortcut icon" href="{{ "/assets/images/favicon.ico" | relative_url }}" />
   {%- feed_meta -%}
+
   {%- if jekyll.environment == 'production' and site.google_analytics -%}
     {%- include google-analytics.html -%}
   {%- endif -%}
+
+  {% if jekyll.environment == 'production' %}
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3867754625087793"
+       crossorigin="anonymous"></script>
+  {% endif %}
 </head>
