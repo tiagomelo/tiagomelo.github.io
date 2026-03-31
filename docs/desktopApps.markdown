@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Published desktop apps
+title: Desktop apps
 permalink: /desktopApps/
 ---
 

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Published Docker images
+title: Docker images
 permalink: /dockerImages/
 ---
 

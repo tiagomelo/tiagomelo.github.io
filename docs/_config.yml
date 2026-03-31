@@ -31,6 +31,7 @@ linkedin_username: tiagocmelo
 theme: minima
 header_pages:
   - about.markdown
+  - mobileApps.markdown
   - desktopApps.markdown
   - dockerImages.markdown
   - opensource.markdown
