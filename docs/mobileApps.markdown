@@ -19,5 +19,5 @@ permalink: /mobileApps/
 ![simple bluetooth mic](/assets/images/bluetooth-mic/icon.png)
 
 <a href="https://apps.apple.com/us/app/simple-bluetooth-mic/id6761695098">
-  <img src="/assets/images/bluetooth-mic/icon.png" alt="Download on the App Store" width="200"/>
+  <img src="/assets/images/bluetooth-mic/appstore-badge.svg" alt="Download on the App Store" width="200"/>
 </a>
