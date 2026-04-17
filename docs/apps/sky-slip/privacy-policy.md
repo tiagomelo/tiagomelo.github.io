@@ -1,12 +1,12 @@
 ---
 layout: page
 title: Privacy Policy
-permalink: /sky-dash/privacy
+permalink: /sky-slip/privacy
 ---
 
 *Last updated: April 17, 2026*
 
-Tiago Melo ("we", "our", or "us") built SkyDash ("the App") as a commercial application. This page informs you of our policies regarding the collection, use, and disclosure of information when you use the App.
+Tiago Melo ("we", "our", or "us") built SkySlip ("the App") as a commercial application. This page informs you of our policies regarding the collection, use, and disclosure of information when you use the App.
 
 ## Information We Do Not Collect
 
