@@ -4,6 +4,12 @@ title: Mobile apps
 permalink: /mobileApps/
 ---
 
+![the perfect stop](/assets/images/the-perfect-stop/icon.png)
+
+<a href="https://apps.apple.com/us/app/the-perfect-stop/id6762573404">
+  <img src="/assets/images/the-perfect-stop/appstore-badge.svg" alt="Download on the App Store" width="200">
+</a>
+
 ![make your photo puzzle](/assets/images/2026-03-31-photo-puzzle/icon.png)
 
 <a href="https://apps.apple.com/us/app/make-your-photo-puzzle/id6760949600">
