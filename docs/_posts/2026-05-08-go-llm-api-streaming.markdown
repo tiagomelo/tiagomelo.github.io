@@ -540,14 +540,6 @@ The Stop button cancels the iOS task, which cancels the URLSession, which closes
 
 ![stop demo](/assets/images/2026-05-08-go-llm-api-streaming/gollmStop.gif)
 
-### Clearing the chat
-
-Trash icon wipes the chat history and starts fresh:
-
-![clear demo](/assets/images/2026-05-08-go-llm-api-streaming/gollmClean.gif)
-
-The whole pipeline — Ollama → Go → iOS — streams cleanly with no buffering at any layer.
-
 ---
 
 ## Final thoughts
