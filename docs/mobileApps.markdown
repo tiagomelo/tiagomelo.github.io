@@ -4,6 +4,12 @@ title: Mobile apps
 permalink: /mobileApps/
 ---
 
+![WB calculator](/assets/images/wb/icon.png)
+
+<a href="https://apps.apple.com/us/app/weight-and-balance-calculator/id6766536819">
+  <img src="/assets/images/wb/appstore-badge.svg" alt="Download on the App Store" width="200">
+</a>
+
 ![orbit](/assets/images/orbit/icon.png)
 
 <a href="https://apps.apple.com/us/app/orbit-event-hub/id6763550938">
