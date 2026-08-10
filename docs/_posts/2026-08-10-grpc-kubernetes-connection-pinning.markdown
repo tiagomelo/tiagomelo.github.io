@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Why Scaling a Kubernetes gRPC Service Might Not Balance Traffic"
+title:  "Why scaling a Kubernetes gRPC service might not balance traffic"
 date:   2026-06-10 23:11:01 -0000
 categories: go golang grpc kubernetes k8s istio
 image: "/assets/images/2026-08-10-grpc-kubernetes-connection-pinning/banner.png"
